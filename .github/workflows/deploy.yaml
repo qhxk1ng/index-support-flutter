@@ -1,0 +1,47 @@
+name: Build & Upload APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Debug APK
+        run: flutter build apk --debug
+
+      - name: Rename APK with timestamp
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+          mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/app-debug-$TIMESTAMP.apk
+          echo "APK_NAME=app-debug-$TIMESTAMP.apk" >> $GITHUB_ENV
+
+      - name: Upload to Google Drive
+        uses: adityak74/google-drive-upload-git-action@main
+        with:
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          filename: build/app/outputs/flutter-apk/${{ env.APK_NAME }}
+          folderId: root
+          overwrite: false
+          mimeType: application/vnd.android.package-archive
