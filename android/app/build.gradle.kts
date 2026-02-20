@@ -47,14 +47,3 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.0")
 }
-
-// Workaround for mapbox_gl namespace issue
-subprojects {
-    afterEvaluate {
-        if (name == "mapbox_gl") {
-            android {
-                namespace = "com.mapbox.maps"
-            }
-        }
-    }
-}
