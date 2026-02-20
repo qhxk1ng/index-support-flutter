@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      apk_name: ${{ steps.rename.outputs.apk_name }}
 
     steps:
       - name: Checkout code
@@ -31,20 +33,51 @@ jobs:
       - name: Configure Mapbox token
         run: echo "MAPBOX_DOWNLOADS_TOKEN=${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}" >> android/gradle.properties
 
+      - name: Patch mapbox_gl namespace
+        run: |
+          flutter pub get
+          MAPBOX_BUILD_GRADLE="$HOME/.pub-cache/hosted/pub.dev/mapbox_gl-0.16.0/android/build.gradle"
+          if [ -f "$MAPBOX_BUILD_GRADLE" ]; then
+            if ! grep -q "namespace" "$MAPBOX_BUILD_GRADLE"; then
+              sed -i "s/android {/android {\n    namespace 'com.mapbox.maps'/" "$MAPBOX_BUILD_GRADLE"
+              echo "Patched mapbox_gl build.gradle"
+            fi
+          fi
+
       - name: Build Debug APK
         run: flutter build apk --debug
 
       - name: Rename APK with timestamp
+        id: rename
         run: |
           TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
           mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/app-debug-$TIMESTAMP.apk
+          echo "apk_name=app-debug-$TIMESTAMP.apk" >> $GITHUB_OUTPUT
           echo "APK_NAME=app-debug-$TIMESTAMP.apk" >> $GITHUB_ENV
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/${{ steps.rename.outputs.apk_name }}
+          retention-days: 1
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: debug-apk
+          path: apk/
 
       - name: Upload to Google Drive
         uses: adityak74/google-drive-upload-git-action@main
         with:
           credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          filename: build/app/outputs/flutter-apk/${{ env.APK_NAME }}
+          filename: apk/${{ needs.build.outputs.apk_name }}
           folderId: root
           overwrite: false
           mimeType: application/vnd.android.package-archive
