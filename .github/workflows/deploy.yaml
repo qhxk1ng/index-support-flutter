@@ -48,7 +48,7 @@ jobs:
           patch_namespace "$HOME/.pub-cache/hosted/pub.dev/qr_code_scanner-1.0.1/android/build.gradle" "net.touchcapture.qr.flutterqr"
 
       - name: Build Debug APK
-        run: flutter build apk --debug --dart-define=MAPBOX_PUBLIC_TOKEN=${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+        run: flutter build apk --debug "--dart-define=MAPBOX_PUBLIC_TOKEN=${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}"
 
       - name: Rename APK with timestamp
         id: rename
