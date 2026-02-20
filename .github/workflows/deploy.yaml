@@ -33,16 +33,23 @@ jobs:
       - name: Configure Mapbox token
         run: echo "MAPBOX_DOWNLOADS_TOKEN=${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}" >> android/gradle.properties
 
-      - name: Patch mapbox_gl namespace
+      - name: Patch missing namespaces in pub-cache packages
         run: |
-          flutter pub get
-          MAPBOX_BUILD_GRADLE="$HOME/.pub-cache/hosted/pub.dev/mapbox_gl-0.16.0/android/build.gradle"
-          if [ -f "$MAPBOX_BUILD_GRADLE" ]; then
-            if ! grep -q "namespace" "$MAPBOX_BUILD_GRADLE"; then
-              sed -i "s/android {/android {\n    namespace 'com.mapbox.maps'/" "$MAPBOX_BUILD_GRADLE"
-              echo "Patched mapbox_gl build.gradle"
+          patch_namespace() {
+            local gradle_file="$1"
+            local namespace="$2"
+            if [ -f "$gradle_file" ]; then
+              if ! grep -q "namespace" "$gradle_file"; then
+                sed -i "s/android {/android {\n    namespace '$namespace'/" "$gradle_file"
+                echo "Patched: $gradle_file"
+              fi
+            else
+              echo "Not found: $gradle_file"
             fi
-          fi
+          }
+
+          patch_namespace "$HOME/.pub-cache/hosted/pub.dev/mapbox_gl-0.16.0/android/build.gradle" "com.mapbox.maps"
+          patch_namespace "$HOME/.pub-cache/hosted/pub.dev/qr_code_scanner-1.0.1/android/build.gradle" "net.touchcapture.qr.flutterqr"
 
       - name: Build Debug APK
         run: flutter build apk --debug
