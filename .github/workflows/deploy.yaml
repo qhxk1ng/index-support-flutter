@@ -28,9 +28,10 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Configure Mapbox token
+        run: echo "MAPBOX_DOWNLOADS_TOKEN=${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}" >> android/gradle.properties
+
       - name: Build Debug APK
-        env:
-          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
         run: flutter build apk --debug
 
       - name: Rename APK with timestamp
