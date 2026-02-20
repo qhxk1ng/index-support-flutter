@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/datasources/admin_remote_data_source.dart';
 import '../../domain/entities/admin_entities.dart';
@@ -254,8 +255,10 @@ class _TechnicianLiveLocationPageState extends State<TechnicianLiveLocationPage>
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${AppConstants.mapboxPublicToken}',
                       userAgentPackageName: 'com.indexcare.app',
+                      tileSize: 512,
+                      zoomOffset: -1,
                     ),
                     PolylineLayer(
                       polylines: _buildPolylines(),

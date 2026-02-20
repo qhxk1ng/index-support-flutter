@@ -12,11 +12,9 @@ class AppConstants {
   static const String jsonContentType = 'application/json';
   static const String multipartContentType = 'multipart/form-data';
   
-  // Mapbox - Load from environment or use placeholder
-  // Set MAPBOX_ACCESS_TOKEN in your environment
-  static const String mapboxAccessToken = String.fromEnvironment(
-    'MAPBOX_ACCESS_TOKEN',
-    defaultValue: '', // Will be set at runtime
+  static const String mapboxPublicToken = String.fromEnvironment(
+    'MAPBOX_PUBLIC_TOKEN',
+    defaultValue: '',
   );
 }
 
