@@ -56,6 +56,7 @@ class ApiEndpoints {
   static String assignComplaint(String id) => '/admin/complaint/$id/assign';
   static const String getTechnicians = '/admin/technicians';
   static String getTechnicianLocation(String id) => '/admin/technician/$id/location';
+  static String getComplaintTracking(String id) => '/admin/complaint/$id/track';
   static const String adminInstallations = '/admin/installations';
   static String approveInstallation(String id) => '/admin/installation/$id/approve';
   static const String fieldVisits = '/admin/field-visits';

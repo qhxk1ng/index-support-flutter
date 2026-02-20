@@ -3,11 +3,17 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/datasources/admin_remote_data_source.dart';
-import '../../domain/entities/admin_entities.dart';
 import 'dart:async';
 
 class AdminTrackingPage extends StatefulWidget {
-  const AdminTrackingPage({super.key});
+  final String complaintId;
+  final String ticketNumber;
+
+  const AdminTrackingPage({
+    super.key,
+    required this.complaintId,
+    required this.ticketNumber,
+  });
 
   @override
   State<AdminTrackingPage> createState() => _AdminTrackingPageState();
@@ -16,15 +22,15 @@ class AdminTrackingPage extends StatefulWidget {
 class _AdminTrackingPageState extends State<AdminTrackingPage> {
   final MapController _mapController = MapController();
   Timer? _refreshTimer;
-  List<FieldPersonnelEntity> _personnel = [];
+  Map<String, dynamic>? _trackingData;
   bool _isLoading = true;
-  String? _selectedPersonnelId;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadPersonnel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadPersonnel());
+    _loadTracking();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadTracking());
   }
 
   @override
@@ -34,131 +40,124 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
     super.dispose();
   }
 
-  Future<void> _loadPersonnel() async {
+  Future<void> _loadTracking() async {
     try {
       final adminRemoteDataSource = sl<AdminRemoteDataSource>();
-      final personnel = await adminRemoteDataSource.getAllFieldPersonnel();
-      
+      final data = await adminRemoteDataSource.getComplaintTracking(widget.complaintId);
       if (mounted) {
         setState(() {
-          _personnel = personnel;
+          _trackingData = data;
           _isLoading = false;
+          _error = null;
         });
-        
-        if (_personnel.isNotEmpty && _selectedPersonnelId == null) {
-          _fitMapToPersonnel();
+        final lat = (data['latitude'] as num?)?.toDouble();
+        final lng = (data['longitude'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          _mapController.move(LatLng(lat, lng), 15);
         }
       }
     } catch (e) {
-      debugPrint('Error loading personnel: $e');
+      debugPrint('Error loading tracking: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
       }
-    }
-  }
-
-  void _fitMapToPersonnel() {
-    if (_personnel.isEmpty) return;
-    
-    final activePersonnel = _personnel.where((p) => p.currentLatitude != null && p.currentLongitude != null).toList();
-    if (activePersonnel.isEmpty) return;
-
-    try {
-      if (activePersonnel.length == 1) {
-        _mapController.move(
-          LatLng(activePersonnel.first.currentLatitude!, activePersonnel.first.currentLongitude!),
-          14,
-        );
-      } else {
-        final bounds = LatLngBounds(
-          LatLng(
-            activePersonnel.map((p) => p.currentLatitude!).reduce((a, b) => a < b ? a : b),
-            activePersonnel.map((p) => p.currentLongitude!).reduce((a, b) => a < b ? a : b),
-          ),
-          LatLng(
-            activePersonnel.map((p) => p.currentLatitude!).reduce((a, b) => a > b ? a : b),
-            activePersonnel.map((p) => p.currentLongitude!).reduce((a, b) => a > b ? a : b),
-          ),
-        );
-        _mapController.fitCamera(
-          CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(100)),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error fitting map: $e');
     }
   }
 
   List<Marker> _buildMarkers() {
-    return _personnel
-        .where((p) => p.currentLatitude != null && p.currentLongitude != null)
-        .map((personnel) {
-      final isSelected = _selectedPersonnelId == personnel.id;
-      final color = personnel.isActive ? const Color(0xFF10B981) : Colors.grey;
+    if (_trackingData == null) return [];
+    final markers = <Marker>[];
 
-      return Marker(
-        point: LatLng(personnel.currentLatitude!, personnel.currentLongitude!),
-        width: isSelected ? 60 : 45,
-        height: isSelected ? 60 : 45,
-        child: GestureDetector(
-          onTap: () {
-            setState(() => _selectedPersonnelId = personnel.id);
-            _mapController.move(
-              LatLng(personnel.currentLatitude!, personnel.currentLongitude!),
-              16,
-            );
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? Colors.white : Colors.transparent,
-                width: isSelected ? 3 : 0,
+    final techLat = (_trackingData!['latitude'] as num?)?.toDouble();
+    final techLng = (_trackingData!['longitude'] as num?)?.toDouble();
+    if (techLat != null && techLng != null) {
+      markers.add(Marker(
+        point: LatLng(techLat, techLng),
+        width: 50,
+        height: 50,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF6366F1),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.engineering,
-              color: Colors.white,
-              size: isSelected ? 28 : 20,
-            ),
+            ],
           ),
+          child: const Icon(Icons.engineering, color: Colors.white, size: 24),
         ),
-      );
-    }).toList();
+      ));
+    }
+
+    final siteLat = (_trackingData!['complaintLatitude'] as num?)?.toDouble();
+    final siteLng = (_trackingData!['complaintLongitude'] as num?)?.toDouble();
+    if (siteLat != null && siteLng != null) {
+      markers.add(Marker(
+        point: LatLng(siteLat, siteLng),
+        width: 50,
+        height: 50,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.location_on, color: Colors.white, size: 24),
+        ),
+      ));
+    }
+
+    return markers;
   }
 
   @override
   Widget build(BuildContext context) {
+    final techName = _trackingData?['technicianName'] as String? ?? 'Technician';
+    final techPhone = _trackingData?['technicianPhone'] as String? ?? '';
+    final distanceKm = (_trackingData?['distanceKm'] as num?)?.toDouble();
+    final address = _trackingData?['complaintAddress'] as String? ?? '';
+    final techLat = (_trackingData?['latitude'] as num?)?.toDouble();
+    final techLng = (_trackingData?['longitude'] as num?)?.toDouble();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Live Technician Tracking'),
+        title: Text('Tracking #${widget.ticketNumber}'),
         backgroundColor: const Color(0xFF6366F1),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadPersonnel,
+            onPressed: _loadTracking,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _personnel.isEmpty
-              ? const Center(
+          : _error != null
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.location_off, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No technicians available'),
+                      const Icon(Icons.location_off, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text('Technician location unavailable'),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _loadTracking,
+                        child: const Text('Retry'),
+                      ),
                     ],
                   ),
                 )
@@ -167,14 +166,10 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                     FlutterMap(
                       mapController: _mapController,
                       options: MapOptions(
-                        initialCenter: _personnel.isNotEmpty &&
-                                _personnel.first.currentLatitude != null
-                            ? LatLng(
-                                _personnel.first.currentLatitude!,
-                                _personnel.first.currentLongitude!,
-                              )
+                        initialCenter: techLat != null && techLng != null
+                            ? LatLng(techLat, techLng)
                             : const LatLng(0, 0),
-                        initialZoom: 13,
+                        initialZoom: 15,
                       ),
                       children: [
                         TileLayer(
@@ -184,7 +179,6 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                         MarkerLayer(markers: _buildMarkers()),
                       ],
                     ),
-                    // Bottom sheet with personnel list
                     Positioned(
                       bottom: 0,
                       left: 0,
@@ -204,131 +198,127 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(2),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                alignment: Alignment.center,
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 12),
+                              Row(
                                 children: [
-                                  Text(
-                                    'Active Technicians (${_personnel.where((p) => p.isActive).length})',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: const Color(0xFF6366F1),
+                                    child: Text(
+                                      techName.isNotEmpty ? techName[0].toUpperCase() : 'T',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    height: 150,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: _personnel.length,
-                                      itemBuilder: (context, index) {
-                                        final person = _personnel[index];
-                                        final isSelected = _selectedPersonnelId == person.id;
-
-                                        return GestureDetector(
-                                          onTap: () {
-                                            setState(() => _selectedPersonnelId = person.id);
-                                            if (person.currentLatitude != null &&
-                                                person.currentLongitude != null) {
-                                              _mapController.move(
-                                                LatLng(person.currentLatitude!,
-                                                    person.currentLongitude!),
-                                                16,
-                                              );
-                                            }
-                                          },
-                                          child: Container(
-                                            margin: const EdgeInsets.only(right: 12),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? const Color(0xFF6366F1)
-                                                  : Colors.grey[100],
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: isSelected
-                                                    ? const Color(0xFF6366F1)
-                                                    : Colors.grey[300]!,
-                                              ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    CircleAvatar(
-                                                      radius: 16,
-                                                      backgroundColor: person.isActive
-                                                          ? const Color(0xFF10B981)
-                                                          : Colors.grey,
-                                                      child: Text(
-                                                        person.name[0].toUpperCase(),
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          person.name,
-                                                          style: TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            color: isSelected
-                                                                ? Colors.white
-                                                                : Colors.black,
-                                                            fontSize: 12,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          person.isActive
-                                                              ? 'Active'
-                                                              : 'Offline',
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: isSelected
-                                                                ? Colors.white70
-                                                                : Colors.grey[600],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(techName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        if (techPhone.isNotEmpty)
+                                          Text(techPhone, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                      ],
                                     ),
+                                  ),
+                                  if (distanceKm != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${distanceKm.toStringAsFixed(1)} km away',
+                                        style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (address.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on, size: 16, color: Color(0xFFEF4444)),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(address, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.circle, size: 10, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Live • Updates every 15s',
+                                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Row(
+                        children: [
+                          _LegendDot(color: const Color(0xFF6366F1), label: 'Technician'),
+                          const SizedBox(width: 8),
+                          _LegendDot(color: const Color(0xFFEF4444), label: 'Job Site'),
+                        ],
                       ),
                     ),
                   ],
                 ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
 }

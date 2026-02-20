@@ -22,6 +22,7 @@ abstract class AdminRemoteDataSource {
     String? password,
   });
   Future<Map<String, dynamic>> getTechnicianLocation(String id);
+  Future<Map<String, dynamic>> getComplaintTracking(String complaintId);
 }
 
 class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
@@ -120,6 +121,12 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   @override
   Future<Map<String, dynamic>> getTechnicianLocation(String id) async {
     final response = await apiClient.get(ApiEndpoints.getTechnicianLocation(id));
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getComplaintTracking(String complaintId) async {
+    final response = await apiClient.get(ApiEndpoints.getComplaintTracking(complaintId));
     return response.data['data'] as Map<String, dynamic>;
   }
 }
