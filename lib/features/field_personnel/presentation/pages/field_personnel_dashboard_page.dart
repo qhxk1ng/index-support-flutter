@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../core/services/location_tracking_service.dart';
+import '../../../../core/services/background_location_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,6 +47,8 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
   }
 
   Future<void> _initializeLocationTracking() async {
+    await BackgroundLocationService.initialize();
+    await BackgroundLocationService.start();
     final locationService = sl<LocationTrackingService>();
     await locationService.startTracking();
   }
