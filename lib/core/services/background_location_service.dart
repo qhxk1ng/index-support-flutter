@@ -1,86 +1,105 @@
 import 'dart:async';
-import 'dart:ui';
-import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
-
-@pragma('vm:entry-point')
-Future<void> onStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
-
-  Timer.periodic(const Duration(seconds: 15), (timer) async {
-    if (service is AndroidServiceInstance) {
-      if (!await service.isForegroundService()) return;
-    }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      final baseUrl = prefs.getString('base_url') ?? 'http://localhost:3000/api';
-
-      if (token == null) return;
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final dio = Dio(BaseOptions(
-        baseUrl: baseUrl,
-        headers: {'Authorization': 'Bearer $token'},
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-      ));
-
-      await dio.post('/field-personnel/heartbeat', data: {
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-      });
-    } catch (_) {}
-  });
-}
-
-@pragma('vm:entry-point')
-bool onIosBackground(ServiceInstance service) {
-  return true;
-}
+import '../config/app_config.dart';
+import '../constants/app_constants.dart';
 
 class BackgroundLocationService {
-  static Future<void> initialize() async {
-    final service = FlutterBackgroundService();
+  static Timer? _timer;
+  static bool _running = false;
+  static Position? _lastKnownPosition;
 
-    await service.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: onStart,
-        autoStart: false,
-        isForegroundMode: true,
-        notificationChannelId: 'location_tracking',
-        initialNotificationTitle: 'Index Care',
-        initialNotificationContent: 'Sending your location...',
-        foregroundServiceNotificationId: 888,
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: onStart,
-        onBackground: onIosBackground,
-      ),
-    );
+  static Future<void> initialize() async {
+    // No-op
   }
 
   static Future<void> start() async {
-    final service = FlutterBackgroundService();
-    final isRunning = await service.isRunning();
-    if (!isRunning) {
-      await service.startService();
-    }
+    if (_running) return;
+    _running = true;
+    // Send immediately, then every 30s
+    await _sendLocation();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _sendLocation());
   }
 
   static Future<void> stop() async {
-    final service = FlutterBackgroundService();
-    service.invoke('stopService');
+    _timer?.cancel();
+    _timer = null;
+    _running = false;
   }
 
-  static Future<bool> isRunning() async {
-    return FlutterBackgroundService().isRunning();
+  static Future<bool> isRunning() async => _running;
+
+  static Future<void> _sendLocation() async {
+    try {
+      // Check permission first
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        debugPrint('BackgroundLocationService: permission denied, skipping');
+        return;
+      }
+
+      // Check if location service is enabled
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('BackgroundLocationService: location service disabled');
+        return;
+      }
+
+      // Try last known position first (fast, no timeout risk)
+      Position? position = await Geolocator.getLastKnownPosition();
+
+      // If last known is stale (>2 min) or null, get fresh position
+      final now = DateTime.now();
+      if (position == null ||
+          now.difference(position.timestamp).inMinutes >= 2) {
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 15),
+          );
+        } catch (e) {
+          // Fall back to last known if fresh fetch fails
+          debugPrint('BackgroundLocationService: getCurrentPosition failed: $e');
+          if (position == null && _lastKnownPosition != null) {
+            position = _lastKnownPosition;
+          }
+        }
+      }
+
+      if (position == null) {
+        debugPrint('BackgroundLocationService: no position available');
+        return;
+      }
+
+      _lastKnownPosition = position;
+
+      // Read auth token
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: AppConstants.tokenKey);
+      if (token == null) {
+        debugPrint('BackgroundLocationService: no auth token, skipping');
+        return;
+      }
+
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.fullBaseUrl,
+        headers: {'Authorization': 'Bearer $token'},
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      ));
+
+      final response = await dio.post('/field-personnel/heartbeat', data: {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      });
+
+      debugPrint('BackgroundLocationService: heartbeat sent '
+          '(${position.latitude}, ${position.longitude}) → ${response.statusCode}');
+    } catch (e) {
+      debugPrint('BackgroundLocationService: error: $e');
+    }
   }
 }
