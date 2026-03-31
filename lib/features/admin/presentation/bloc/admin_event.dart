@@ -64,3 +64,27 @@ class UpdateInstallerEvent extends AdminEvent {
   @override
   List<Object?> get props => [id, name, phoneNumber, password];
 }
+
+class GetPendingWarrantiesEvent extends AdminEvent {}
+
+class ApproveWarrantyEvent extends AdminEvent {
+  final String warrantyId;
+
+  const ApproveWarrantyEvent({required this.warrantyId});
+
+  @override
+  List<Object?> get props => [warrantyId];
+}
+
+class RejectWarrantyEvent extends AdminEvent {
+  final String warrantyId;
+  final String reason;
+
+  const RejectWarrantyEvent({
+    required this.warrantyId,
+    required this.reason,
+  });
+
+  @override
+  List<Object?> get props => [warrantyId, reason];
+}

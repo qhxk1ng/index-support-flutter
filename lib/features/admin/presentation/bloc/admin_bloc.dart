@@ -14,6 +14,9 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<GetAllFieldPersonnelEvent>(_onGetAllFieldPersonnel);
     on<GetAllInstallersEvent>(_onGetAllInstallers);
     on<UpdateInstallerEvent>(_onUpdateInstaller);
+    on<GetPendingWarrantiesEvent>(_onGetPendingWarranties);
+    on<ApproveWarrantyEvent>(_onApproveWarranty);
+    on<RejectWarrantyEvent>(_onRejectWarranty);
   }
 
   Future<void> _onGetDashboardStats(
@@ -121,6 +124,51 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     result.fold(
       (failure) => emit(AdminError(message: failure.message)),
       (installer) => emit(InstallerUpdated(installer: installer)),
+    );
+  }
+
+  Future<void> _onGetPendingWarranties(
+    GetPendingWarrantiesEvent event,
+    Emitter<AdminState> emit,
+  ) async {
+    emit(AdminLoading());
+
+    final result = await adminRepository.getPendingWarranties();
+
+    result.fold(
+      (failure) => emit(AdminError(message: failure.message)),
+      (warranties) => emit(PendingWarrantiesLoaded(warranties: warranties)),
+    );
+  }
+
+  Future<void> _onApproveWarranty(
+    ApproveWarrantyEvent event,
+    Emitter<AdminState> emit,
+  ) async {
+    emit(AdminLoading());
+
+    final result = await adminRepository.approveWarranty(warrantyId: event.warrantyId);
+
+    result.fold(
+      (failure) => emit(AdminError(message: failure.message)),
+      (_) => emit(WarrantyApproved()),
+    );
+  }
+
+  Future<void> _onRejectWarranty(
+    RejectWarrantyEvent event,
+    Emitter<AdminState> emit,
+  ) async {
+    emit(AdminLoading());
+
+    final result = await adminRepository.rejectWarranty(
+      warrantyId: event.warrantyId,
+      reason: event.reason,
+    );
+
+    result.fold(
+      (failure) => emit(AdminError(message: failure.message)),
+      (_) => emit(WarrantyRejected()),
     );
   }
 }

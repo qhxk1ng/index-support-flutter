@@ -1,6 +1,6 @@
 class AppConfig {
   static const String appName = 'Index Care';
-  static const String baseUrl = 'http://indexinformatics.com:5000';
+  static const String baseUrl = 'https://api.indexinformatics.in';
   static const String apiVersion = '/api';
   
   static const int connectionTimeout = 30000;

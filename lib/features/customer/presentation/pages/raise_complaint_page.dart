@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../customer/data/models/warranty_model.dart';
 import '../bloc/customer_bloc.dart';
 import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
@@ -28,12 +31,25 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
   bool _isLoadingLocation = false;
   List<XFile> _selectedImages = [];
   final ImagePicker _imagePicker = ImagePicker();
+  List<WarrantyModel> _warranties = [];
+  WarrantyModel? _selectedWarranty;
+  bool _isLoadingWarranties = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWarranties();
+  }
 
   @override
   void dispose() {
     _descriptionController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadWarranties() async {
+    context.read<CustomerBloc>().add(GetWarrantiesEvent());
   }
 
   Future<void> _getCurrentLocation() async {
@@ -156,6 +172,7 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
                   ? null
                   : _addressController.text.trim(),
               images: imageUrls,
+              warrantyId: _selectedWarranty?.id,
             ),
           );
     }
@@ -164,12 +181,29 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Raise A Complaint'),
+        title: const Text(
+          'Raise a Complaint',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: const Color(0xFF1E3A8A),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        actions: [
+          const ThemeToggleButton(),
+        ],
         foregroundColor: Colors.white,
       ),
       body: BlocConsumer<CustomerBloc, CustomerState>(
@@ -189,6 +223,11 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
                 backgroundColor: AppColors.error,
               ),
             );
+          } else if (state is WarrantiesLoaded) {
+            setState(() {
+              _warranties = state.warranties.cast<WarrantyModel>();
+              _isLoadingWarranties = false;
+            });
           }
         },
         builder: (context, state) {
@@ -262,6 +301,168 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
                     hint: 'Enter your address',
                     prefixIcon: const Icon(Icons.location_on_outlined),
                     enabled: !isLoading,
+                  ),
+                  const SizedBox(height: 24),
+                  // Product Selection Section
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.purple[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.inventory_2_rounded, color: Colors.purple[700], size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Select Product (Optional)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple[900],
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (_isLoadingWarranties)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_warranties.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'No registered products found',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          DropdownButtonFormField<WarrantyModel>(
+                            value: _selectedWarranty,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.purple[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.purple[300]!),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            hint: const Text('Choose a product'),
+                            isExpanded: true,
+                            items: _warranties.map((warranty) {
+                              final productName = warranty.product?.name ?? 'Unknown Product';
+                              final serialNumber = warranty.serialNumber?.serialNumber ?? 'N/A';
+                              final status = warranty.status.toString().split('.').last;
+                              
+                              return DropdownMenuItem<WarrantyModel>(
+                                value: warranty,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      productName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'SN: $serialNumber',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey[600],
+                                            fontFamily: 'monospace',
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: status == 'APPROVED' ? Colors.green[100] : Colors.orange[100],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: status == 'APPROVED' ? Colors.green[800] : Colors.orange[800],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: isLoading ? null : (WarrantyModel? value) {
+                              setState(() {
+                                _selectedWarranty = value;
+                              });
+                            },
+                          ),
+                        if (_selectedWarranty != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Product selected: ${_selectedWarranty!.product?.name ?? "Unknown"}',
+                                    style: TextStyle(
+                                      color: Colors.green[900],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   // Image Upload Section

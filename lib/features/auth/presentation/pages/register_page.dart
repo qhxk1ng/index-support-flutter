@@ -31,6 +31,7 @@ class _RegisterPageState extends State<RegisterPage> {
     {'value': 'CUSTOMER', 'label': 'Customer', 'icon': '👤'},
     {'value': 'INSTALLER', 'label': 'Installer', 'icon': '🔧'},
     {'value': 'FIELD_PERSONNEL', 'label': 'Field Personnel', 'icon': '🚗'},
+    {'value': 'SALES_PERSONNEL', 'label': 'Sales Personnel', 'icon': '💼'},
   ];
   
   @override

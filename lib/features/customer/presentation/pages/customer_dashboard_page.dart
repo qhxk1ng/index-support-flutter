@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart' as di;
+import '../../../../core/widgets/theme_toggle_button.dart';
+import '../../../../core/widgets/sidebar_wrapper.dart';
+import '../../../../core/widgets/app_sidebar.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../bloc/customer_bloc.dart';
@@ -8,7 +11,6 @@ import 'raise_complaint_page.dart';
 import 'existing_tickets_page.dart';
 import 'warranty_registration_page.dart';
 import 'registered_products_page.dart';
-import 'account_settings_page.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   const CustomerDashboardPage({super.key});
@@ -19,7 +21,7 @@ class CustomerDashboardPage extends StatefulWidget {
 
 class _CustomerDashboardPageState extends State<CustomerDashboardPage>
     with SingleTickerProviderStateMixin {
-  bool _isSidebarExpanded = false;
+  final GlobalKey<SidebarWrapperState> _sidebarKey = GlobalKey<SidebarWrapperState>();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -59,9 +61,83 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
   }
 
   void _toggleSidebar() {
-    setState(() {
-      _isSidebarExpanded = !_isSidebarExpanded;
-    });
+    _sidebarKey.currentState?.toggleSidebar();
+  }
+
+  List<SidebarMenuItem> _buildMenuItems(BuildContext context) {
+    return [
+      SidebarMenuItem(
+        icon: Icons.dashboard_outlined,
+        title: 'Dashboard',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+        },
+      ),
+      SidebarMenuItem(
+        icon: Icons.report_problem_outlined,
+        title: 'Raise Complaint',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const RaiseComplaintPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      SidebarMenuItem(
+        icon: Icons.confirmation_number_outlined,
+        title: 'Existing Tickets',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const ExistingTicketsPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      SidebarMenuItem(
+        icon: Icons.verified_user_outlined,
+        title: 'Register Product',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const WarrantyRegistrationPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      SidebarMenuItem(
+        icon: Icons.inventory_2_outlined,
+        title: 'Registered Products',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const RegisteredProductsPage(),
+              ),
+            ),
+          );
+        },
+      ),
+    ];
   }
 
   @override
@@ -73,53 +149,39 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
           user = state.user;
         }
 
-        return Scaffold(
-          backgroundColor: Colors.grey[50],
-          body: Stack(
-            children: [
-              // Main Content
-              SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Bar
-                    _buildTopBar(user),
-                    
-                    // Welcome Section
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildWelcomeSection(user),
-                            const SizedBox(height: 32),
-                            _buildFeatureGrid(),
-                          ],
-                        ),
+        return SidebarWrapper(
+          key: _sidebarKey,
+          user: user,
+          primaryColor: const Color(0xFF1E3A8A),
+          secondaryColor: const Color(0xFF3B82F6),
+          menuItems: _buildMenuItems(context),
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Bar
+                  _buildTopBar(user),
+                  
+                  // Welcome Section
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildWelcomeSection(user),
+                          const SizedBox(height: 32),
+                          _buildFeatureGrid(),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              
-              // Animated Sidebar
-              _buildSidebar(user),
-              
-              // Overlay when sidebar is open
-              if (_isSidebarExpanded)
-                GestureDetector(
-                  onTap: _toggleSidebar,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    opacity: _isSidebarExpanded ? 0.5 : 0.0,
-                    child: Container(
-                      color: Colors.black,
-                    ),
                   ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -130,7 +192,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -175,6 +237,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
           
           const Spacer(),
           
+          // Theme Toggle
+          const ThemeToggleButton(),
+          const SizedBox(width: 12),
+          
           // Notification Icon
           Material(
             color: Colors.transparent,
@@ -184,7 +250,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -228,7 +296,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               'Welcome,',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -247,7 +315,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               'How can we help you today?',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
               ),
             ),
           ],
@@ -379,20 +447,37 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
   }
 
   Widget _buildFeatureCard(_FeatureCard feature) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: feature.onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: Container(
           decoration: BoxDecoration(
-            gradient: feature.gradient,
-            borderRadius: BorderRadius.circular(20),
+            gradient: isDark 
+                ? LinearGradient(
+                    colors: [
+                      feature.color.withOpacity(0.3),
+                      feature.color.withOpacity(0.2),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : feature.gradient,
+            borderRadius: BorderRadius.circular(24),
+            border: isDark 
+                ? Border.all(
+                    color: feature.color.withOpacity(0.3),
+                    width: 1,
+                  )
+                : null,
             boxShadow: [
               BoxShadow(
-                color: feature.color.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: feature.color.withOpacity(isDark ? 0.1 : 0.3),
+                blurRadius: isDark ? 12 : 20,
+                offset: Offset(0, isDark ? 4 : 10),
               ),
             ],
           ),
@@ -494,201 +579,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
     );
   }
 
-  Widget _buildSidebar(UserEntity? user) {
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      left: _isSidebarExpanded ? 0 : -280,
-      top: 0,
-      bottom: 0,
-      width: 280,
-      child: Material(
-        elevation: 16,
-        shadowColor: Colors.black.withOpacity(0.3),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                // User Profile Section
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 3,
-                          ),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            user?.name.substring(0, 1).toUpperCase() ?? 'G',
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // User Name
-                      Text(
-                        user?.name ?? 'Guest User',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      
-                      // User Email
-                      Text(
-                        user?.email ?? '',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Divider
-                Divider(
-                  color: Colors.white.withOpacity(0.1),
-                  thickness: 1,
-                  height: 1,
-                ),
-                
-                // Menu Items
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    children: [
-                      _buildSidebarItem(
-                        icon: Icons.dashboard_outlined,
-                        title: 'Dashboard',
-                        onTap: () {
-                          _toggleSidebar();
-                        },
-                      ),
-                      _buildSidebarItem(
-                        icon: Icons.person_outline,
-                        title: 'Account Settings',
-                        onTap: () {
-                          _toggleSidebar();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AccountSettingsPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildSidebarItem(
-                        icon: Icons.help_outline,
-                        title: 'Help',
-                        onTap: () {
-                          _toggleSidebar();
-                          // Navigate to help
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Divider
-                Divider(
-                  color: Colors.white.withOpacity(0.1),
-                  thickness: 1,
-                  height: 1,
-                ),
-                
-                // Sign Out Button
-                _buildSidebarItem(
-                  icon: Icons.logout_rounded,
-                  title: 'Sign Out',
-                  isDestructive: true,
-                  onTap: () {
-                    _toggleSidebar();
-                    context.read<AuthBloc>().add(LogoutEvent());
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSidebarItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isDestructive
-                    ? Colors.red[300]
-                    : Colors.white.withOpacity(0.9),
-                size: 24,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDestructive
-                      ? Colors.red[300]
-                      : Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _FeatureCard {

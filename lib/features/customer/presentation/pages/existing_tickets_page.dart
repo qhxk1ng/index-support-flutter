@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../bloc/customer_bloc.dart';
 import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
@@ -64,16 +65,31 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Tickets'),
+        title: const Text(
+          'My Tickets',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: const Color(0xFF7C3AED),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF7C3AED), Color(0xFFA78BFA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         actions: [
+          const ThemeToggleButton(),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
               context.read<CustomerBloc>().add(GetComplaintsEvent());
             },
@@ -173,17 +189,22 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
   Widget _buildTicketCard(ComplaintEntity complaint) {
     final statusColor = _getStatusColor(complaint.status);
     final statusIcon = _getStatusIcon(complaint.status);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: isDark ? Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: isDark ? 8 : 10,
+            offset: Offset(0, isDark ? 2 : 4),
           ),
         ],
       ),
@@ -193,7 +214,7 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
           onTap: () {
             // Navigate to complaint details
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -204,8 +225,8 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(statusIcon, color: statusColor, size: 20),
                     ),
@@ -216,9 +237,11 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                         children: [
                           Text(
                             'Ticket #${complaint.id.substring(0, 8).toUpperCase()}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
                               fontSize: 16,
+                              letterSpacing: -0.3,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -227,7 +250,7 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                                 .format(complaint.createdAt),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
                             ),
                           ),
                         ],
@@ -239,7 +262,7 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -258,8 +281,9 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                   complaint.description,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[800],
-                    height: 1.4,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    height: 1.5,
+                    letterSpacing: 0.1,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -271,7 +295,7 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                       Icon(
                         Icons.location_on_outlined,
                         size: 16,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -279,7 +303,7 @@ class _ExistingTicketsPageState extends State<ExistingTicketsPage> {
                           complaint.address!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

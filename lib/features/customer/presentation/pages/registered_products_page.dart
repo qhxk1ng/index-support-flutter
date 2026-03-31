@@ -21,8 +21,12 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
   }
 
   Color _getWarrantyStatusColor(WarrantyEntity warranty) {
-    if (warranty.isExpired) return Colors.red;
-    if (warranty.daysRemaining < 30) return Colors.orange;
+    if (!warranty.isApproved) return Colors.grey;
+    if (warranty.boardWarrantyExpired && warranty.batteryWarrantyExpired) return Colors.red;
+    final minDays = warranty.boardDaysRemaining < warranty.batteryDaysRemaining 
+        ? warranty.boardDaysRemaining 
+        : warranty.batteryDaysRemaining;
+    if (minDays < 30) return Colors.orange;
     return Colors.green;
   }
 
@@ -137,7 +141,8 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
 
   Widget _buildProductCard(WarrantyEntity warranty) {
     final statusColor = _getWarrantyStatusColor(warranty);
-    final daysRemaining = warranty.daysRemaining;
+    final boardDays = warranty.boardDaysRemaining;
+    final batteryDays = warranty.batteryDaysRemaining;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -214,15 +219,21 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        warranty.isExpired
-                            ? Icons.error_outline
-                            : Icons.check_circle_outline,
+                        !warranty.isApproved
+                            ? Icons.pending_outlined
+                            : (warranty.boardWarrantyExpired && warranty.batteryWarrantyExpired)
+                                ? Icons.error_outline
+                                : Icons.check_circle_outline,
                         size: 14,
                         color: statusColor,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        warranty.isExpired ? 'Expired' : 'Active',
+                        !warranty.isApproved
+                            ? 'Pending'
+                            : (warranty.boardWarrantyExpired && warranty.batteryWarrantyExpired)
+                                ? 'Expired'
+                                : 'Active',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -292,49 +303,124 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: statusColor.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.shield_outlined, size: 20, color: statusColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          warranty.isExpired
-                              ? 'Warranty Expired'
-                              : 'Warranty Valid',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                            fontSize: 13,
-                          ),
+            if (!warranty.isApproved)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pending, size: 20, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        warranty.status == WarrantyStatus.correctionRequested
+                            ? 'Correction Requested: ${warranty.correctionRequested}'
+                            : warranty.status == WarrantyStatus.rejected
+                                ? 'Rejected: ${warranty.rejectionReason}'
+                                : 'Pending Admin Approval',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          warranty.isExpired
-                              ? 'Expired on ${DateFormat('MMM dd, yyyy').format(warranty.expiryDate)}'
-                              : daysRemaining > 0
-                                  ? '$daysRemaining days remaining • Expires ${DateFormat('MMM dd, yyyy').format(warranty.expiryDate)}'
-                                  : 'Expires today',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: statusColor.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            if (warranty.isApproved)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.memory, size: 20, color: warranty.boardWarrantyExpired ? Colors.red : Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            warranty.boardWarrantyExpired
+                                ? 'Board Warranty Expired'
+                                : 'Board Warranty Valid',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: warranty.boardWarrantyExpired ? Colors.red : Colors.green,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            warranty.boardWarrantyExpired
+                                ? 'Expired on ${DateFormat('MMM dd, yyyy').format(warranty.boardWarrantyExpiry!)}'
+                                : boardDays > 0
+                                    ? '$boardDays days remaining • Expires ${DateFormat('MMM dd, yyyy').format(warranty.boardWarrantyExpiry!)}'
+                                  : 'Expires today',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (warranty.isApproved)
+              const SizedBox(height: 8),
+            if (warranty.isApproved)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.battery_charging_full, size: 20, color: warranty.batteryWarrantyExpired ? Colors.red : Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            warranty.batteryWarrantyExpired
+                                ? 'Battery Warranty Expired'
+                                : 'Battery Warranty Valid',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: warranty.batteryWarrantyExpired ? Colors.red : Colors.green,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            warranty.batteryWarrantyExpired
+                                ? 'Expired on ${DateFormat('MMM dd, yyyy').format(warranty.batteryWarrantyExpiry!)}'
+                                : batteryDays > 0
+                                    ? '$batteryDays days remaining • Expires ${DateFormat('MMM dd, yyyy').format(warranty.batteryWarrantyExpiry!)}'
+                                  : 'Expires today',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

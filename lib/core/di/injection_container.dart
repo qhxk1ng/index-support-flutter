@@ -14,6 +14,8 @@ import '../../features/admin/data/datasources/admin_remote_data_source.dart';
 import '../../features/admin/data/repositories/admin_repository_impl.dart';
 import '../../features/admin/domain/repositories/admin_repository.dart';
 import '../../features/admin/presentation/bloc/admin_bloc.dart';
+import '../../features/sales_personnel/data/repositories/sales_personnel_repository.dart';
+import '../../features/sales_personnel/presentation/bloc/sales_personnel_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -69,5 +71,14 @@ Future<void> init() async {
   // Data Source
   sl.registerLazySingleton<AdminRemoteDataSource>(
     () => AdminRemoteDataSourceImpl(apiClient: sl()),
+  );
+  
+  // Sales Personnel Feature
+  // Bloc
+  sl.registerFactory(() => SalesPersonnelBloc(repository: sl()));
+  
+  // Repository
+  sl.registerLazySingleton<SalesPersonnelRepository>(
+    () => SalesPersonnelRepository(apiClient: sl()),
   );
 }

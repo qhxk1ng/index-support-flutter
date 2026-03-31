@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/admin_entities.dart';
+import '../../../customer/data/models/warranty_model.dart';
 
 abstract class AdminState extends Equatable {
   const AdminState();
@@ -83,3 +84,16 @@ class AdminError extends AdminState {
   @override
   List<Object> get props => [message];
 }
+
+class PendingWarrantiesLoaded extends AdminState {
+  final List<WarrantyModel> warranties;
+
+  const PendingWarrantiesLoaded({required this.warranties});
+
+  @override
+  List<Object> get props => [warranties];
+}
+
+class WarrantyApproved extends AdminState {}
+
+class WarrantyRejected extends AdminState {}

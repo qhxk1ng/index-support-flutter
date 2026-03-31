@@ -13,6 +13,7 @@ class RaiseComplaintEvent extends CustomerEvent {
   final double longitude;
   final String? address;
   final List<String> images;
+  final String? warrantyId;
 
   const RaiseComplaintEvent({
     required this.description,
@@ -20,10 +21,11 @@ class RaiseComplaintEvent extends CustomerEvent {
     required this.longitude,
     this.address,
     this.images = const [],
+    this.warrantyId,
   });
 
   @override
-  List<Object?> get props => [description, latitude, longitude, address, images];
+  List<Object?> get props => [description, latitude, longitude, address, images, warrantyId];
 }
 
 class GetComplaintsEvent extends CustomerEvent {}
@@ -37,17 +39,32 @@ class GetComplaintDetailsEvent extends CustomerEvent {
   List<Object> get props => [complaintId];
 }
 
-class RegisterWarrantyEvent extends CustomerEvent {
-  final String productId;
+class ValidateSerialEvent extends CustomerEvent {
   final String serialNumber;
 
+  const ValidateSerialEvent({required this.serialNumber});
+
+  @override
+  List<Object> get props => [serialNumber];
+}
+
+class RegisterWarrantyEvent extends CustomerEvent {
+  final String serialNumber;
+  final int manufacturingMonth;
+  final int manufacturingYear;
+  final DateTime? purchaseDate;
+  final String invoiceUrl;
+
   const RegisterWarrantyEvent({
-    required this.productId,
     required this.serialNumber,
+    required this.manufacturingMonth,
+    required this.manufacturingYear,
+    this.purchaseDate,
+    required this.invoiceUrl,
   });
 
   @override
-  List<Object> get props => [productId, serialNumber];
+  List<Object?> get props => [serialNumber, manufacturingMonth, manufacturingYear, purchaseDate, invoiceUrl];
 }
 
 class GetWarrantiesEvent extends CustomerEvent {}

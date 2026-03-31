@@ -10,6 +10,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     on<RaiseComplaintEvent>(_onRaiseComplaint);
     on<GetComplaintsEvent>(_onGetComplaints);
     on<GetComplaintDetailsEvent>(_onGetComplaintDetails);
+    on<ValidateSerialEvent>(_onValidateSerial);
     on<RegisterWarrantyEvent>(_onRegisterWarranty);
     on<GetWarrantiesEvent>(_onGetWarranties);
     on<GetProductsEvent>(_onGetProducts);
@@ -63,6 +64,20 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     );
   }
 
+  Future<void> _onValidateSerial(
+    ValidateSerialEvent event,
+    Emitter<CustomerState> emit,
+  ) async {
+    emit(CustomerLoading());
+
+    final result = await customerRepository.validateSerial(event.serialNumber);
+
+    result.fold(
+      (failure) => emit(CustomerError(message: failure.message)),
+      (product) => emit(SerialValidated(serialNumber: event.serialNumber, product: product)),
+    );
+  }
+
   Future<void> _onRegisterWarranty(
     RegisterWarrantyEvent event,
     Emitter<CustomerState> emit,
@@ -70,8 +85,11 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     emit(CustomerLoading());
 
     final result = await customerRepository.registerWarranty(
-      productId: event.productId,
       serialNumber: event.serialNumber,
+      manufacturingMonth: event.manufacturingMonth,
+      manufacturingYear: event.manufacturingYear,
+      purchaseDate: event.purchaseDate,
+      invoiceUrl: event.invoiceUrl,
     );
 
     result.fold(

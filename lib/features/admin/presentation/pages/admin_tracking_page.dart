@@ -32,6 +32,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   bool _mapReady = false;
   bool _useMapbox = false;
   List<LatLng> _routePoints = [];
+  double? _roadDistanceKm;
 
   @override
   void initState() {
@@ -50,7 +51,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   Future<void> _loadTracking() async {
     try {
       final adminRemoteDataSource = sl<AdminRemoteDataSource>();
-      final data = await adminRemoteDataSource.getComplaintTracking(widget.complaintId);
+      final data = await adminRemoteDataSource.getComplaintTrack(widget.complaintId);
       if (!mounted) return;
       setState(() {
         _trackingData = data;
@@ -91,10 +92,15 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
       final response = await dio.get(url);
       final routes = response.data['routes'] as List?;
       if (routes == null || routes.isEmpty) return;
-      final coords = routes[0]['geometry']['coordinates'] as List;
+      final route = routes[0];
+      final coords = route['geometry']['coordinates'] as List;
       final points = coords.map<LatLng>((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
+      final distanceMetres = (route['distance'] as num?)?.toDouble() ?? 0;
       if (mounted) {
-        setState(() => _routePoints = points);
+        setState(() {
+          _routePoints = points;
+          _roadDistanceKm = distanceMetres / 1000;
+        });
       }
     } catch (e) {
       debugPrint('Route fetch error: $e');
@@ -172,11 +178,8 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   }
 
   String _getTileUrl() {
-    if (_useMapbox) {
-      final token = AppConstants.mapboxPublicToken;
-      if (token.isNotEmpty) {
-        return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=$token';
-      }
+    if (_useMapbox && AppConstants.mapboxPublicToken.isNotEmpty) {
+      return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${AppConstants.mapboxPublicToken}';
     }
     return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   }
@@ -185,7 +188,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   Widget build(BuildContext context) {
     final techName = _trackingData?['technicianName'] as String? ?? 'Technician';
     final techPhone = _trackingData?['technicianPhone'] as String? ?? '';
-    final distanceKm = (_trackingData?['distanceKm'] as num?)?.toDouble();
+    final distanceKm = _roadDistanceKm ?? (_trackingData?['distanceKm'] as num?)?.toDouble();
     final address = _trackingData?['complaintAddress'] as String? ?? '';
     final techLat = (_trackingData?['latitude'] as num?)?.toDouble();
     final techLng = (_trackingData?['longitude'] as num?)?.toDouble();

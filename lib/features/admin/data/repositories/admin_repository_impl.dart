@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../../customer/data/models/warranty_model.dart';
 import '../../domain/entities/admin_entities.dart';
 import '../../domain/repositories/admin_repository.dart';
 import '../datasources/admin_remote_data_source.dart';
@@ -127,6 +128,51 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(NetworkFailure(e.message));
     } on ValidationException catch (e) {
       return Left(ValidationFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<WarrantyModel>>> getPendingWarranties() async {
+    try {
+      final result = await remoteDataSource.getPendingWarranties();
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> approveWarranty({required String warrantyId}) async {
+    try {
+      await remoteDataSource.approveWarranty(warrantyId: warrantyId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> rejectWarranty({
+    required String warrantyId,
+    required String reason,
+  }) async {
+    try {
+      await remoteDataSource.rejectWarranty(warrantyId: warrantyId, reason: reason);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

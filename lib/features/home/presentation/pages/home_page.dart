@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../customer/presentation/pages/customer_dashboard_page.dart';
 import '../../../installer/presentation/pages/installer_home_page.dart';
 import '../../../field_personnel/presentation/pages/field_personnel_home_page.dart';
+import '../../../sales_personnel/presentation/bloc/sales_personnel_bloc.dart';
+import '../../../sales_personnel/presentation/pages/sales_personnel_dashboard_page.dart';
 import '../../../admin/presentation/pages/admin_dashboard_page.dart';
 
 class HomePage extends StatelessWidget {
@@ -27,6 +30,11 @@ class HomePage extends StatelessWidget {
               return const InstallerHomePage();
             case UserRole.fieldPersonnel:
               return const FieldPersonnelHomePage();
+            case UserRole.salesPersonnel:
+              return BlocProvider(
+                create: (_) => sl<SalesPersonnelBloc>(),
+                child: const SalesPersonnelDashboardPage(),
+              );
             default:
               return const _InvalidRoleScreen();
           }

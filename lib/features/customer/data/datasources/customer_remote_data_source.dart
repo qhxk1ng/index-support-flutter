@@ -5,6 +5,8 @@ import '../../../../core/network/api_client.dart';
 import '../models/complaint_model.dart';
 import '../models/warranty_model.dart';
 
+const String _validateSerialEndpoint = '/customer/warranty/validate-serial';
+
 abstract class CustomerRemoteDataSource {
   Future<ComplaintModel> raiseComplaint({
     required String description,
@@ -18,9 +20,14 @@ abstract class CustomerRemoteDataSource {
 
   Future<ComplaintModel> getComplaintDetails(String id);
 
+  Future<ProductModel> validateSerial(String serialNumber);
+
   Future<WarrantyModel> registerWarranty({
-    required String productId,
     required String serialNumber,
+    required int manufacturingMonth,
+    required int manufacturingYear,
+    DateTime? purchaseDate,
+    required String invoiceUrl,
   });
 
   Future<List<WarrantyModel>> getWarranties();
@@ -72,16 +79,37 @@ class CustomerRemoteDataSourceImpl implements CustomerRemoteDataSource {
   }
 
   @override
+  Future<ProductModel> validateSerial(String serialNumber) async {
+    final response = await apiClient.post(
+      _validateSerialEndpoint,
+      data: {'serialNumber': serialNumber},
+    );
+    return ProductModel.fromJson(
+        (response.data['data']['product']) as Map<String, dynamic>);
+  }
+
+  @override
   Future<WarrantyModel> registerWarranty({
-    required String productId,
     required String serialNumber,
+    required int manufacturingMonth,
+    required int manufacturingYear,
+    DateTime? purchaseDate,
+    required String invoiceUrl,
   }) async {
+    final data = {
+      'serialNumber': serialNumber,
+      'manufacturingMonth': manufacturingMonth,
+      'manufacturingYear': manufacturingYear,
+      'invoiceUrl': invoiceUrl,
+    };
+    
+    if (purchaseDate != null) {
+      data['purchaseDate'] = purchaseDate.toIso8601String();
+    }
+    
     final response = await apiClient.post(
       ApiEndpoints.registerWarranty,
-      data: {
-        'productId': productId,
-        'serialNumber': serialNumber,
-      },
+      data: data,
     );
 
     return WarrantyModel.fromJson(response.data['data'] as Map<String, dynamic>);

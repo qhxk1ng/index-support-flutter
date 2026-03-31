@@ -33,8 +33,10 @@ class ApiEndpoints {
   static const String addRole = '/users/add-role';
   static const String changePassword = '/users/change-password';
   
+  static const String validateSerial = '/customer/warranty/validate-serial';
   static const String registerWarranty = '/customer/warranty/register';
   static const String getWarranties = '/customer/warranties';
+  static const String uploadInvoice = '/upload/invoice';
   static const String raiseComplaint = '/customer/complaint';
   static const String getComplaints = '/customer/complaints';
   static String getComplaintDetails(String id) => '/customer/complaint/$id';
@@ -84,8 +86,9 @@ class UserRole {
   static const String customer = 'CUSTOMER';
   static const String installer = 'INSTALLER';
   static const String fieldPersonnel = 'FIELD_PERSONNEL';
+  static const String salesPersonnel = 'SALES_PERSONNEL';
   
-  static List<String> get allRoles => [admin, customer, installer, fieldPersonnel];
+  static List<String> get allRoles => [admin, customer, installer, fieldPersonnel, salesPersonnel];
 }
 
 class ComplaintStatus {

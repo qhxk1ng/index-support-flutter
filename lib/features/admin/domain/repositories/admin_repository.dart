@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/admin_entities.dart';
+import '../../../customer/data/models/warranty_model.dart';
 
 abstract class AdminRepository {
   Future<Either<Failure, DashboardStatsEntity>> getDashboardStats();
@@ -19,5 +20,11 @@ abstract class AdminRepository {
     String? name,
     String? phoneNumber,
     String? password,
+  });
+  Future<Either<Failure, List<WarrantyModel>>> getPendingWarranties();
+  Future<Either<Failure, void>> approveWarranty({required String warrantyId});
+  Future<Either<Failure, void>> rejectWarranty({
+    required String warrantyId,
+    required String reason,
   });
 }

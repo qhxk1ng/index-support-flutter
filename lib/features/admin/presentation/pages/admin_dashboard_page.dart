@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../domain/entities/admin_entities.dart';
 import '../bloc/admin_bloc.dart';
@@ -10,6 +11,7 @@ import 'active_tickets_page.dart';
 import 'find_users_page.dart';
 import 'field_technicians_page.dart';
 import 'installers_page.dart';
+import 'warranty_approvals_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -30,8 +32,34 @@ class _AdminDashboardView extends StatefulWidget {
   State<_AdminDashboardView> createState() => _AdminDashboardViewState();
 }
 
-class _AdminDashboardViewState extends State<_AdminDashboardView> {
+class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerProviderStateMixin {
   bool _isSidebarExpanded = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   void _toggleSidebar() {
     setState(() {
@@ -49,7 +77,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
               ),
             ),
             child: SafeArea(
@@ -59,9 +87,9 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
                   Expanded(
                     child: Container(
                       margin: const EdgeInsets.only(top: 20),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF8F9FA),
-                        borderRadius: BorderRadius.only(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(30),
                           topRight: Radius.circular(30),
                         ),
@@ -127,53 +155,67 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
               Text(
                 'Admin Dashboard',
                 style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFamily: 'SF Pro Display',
                 ),
               ),
               Text(
                 'Manage your system',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   color: Colors.white70,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],
           ),
+          const Spacer(),
+          const ThemeToggleButton(),
         ],
       ),
     );
   }
 
   Widget _buildDashboardContent(DashboardStatsEntity stats) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Overview',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Overview',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1F2937),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildStatsGrid(stats),
+              const SizedBox(height: 32),
+              const Text(
+                'Quick Actions',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1F2937),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildQuickActions(stats),
+            ],
           ),
-          const SizedBox(height: 16),
-          _buildStatsGrid(stats),
-          const SizedBox(height: 24),
-          const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildQuickActions(stats),
-        ],
+        ),
       ),
     );
   }
@@ -190,85 +232,110 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
         _buildStatCard(
           'Total Customers',
           stats.totalCustomers.toString(),
-          Icons.people,
-          const Color(0xFF3B82F6),
+          Icons.people_alt_rounded,
+          const Color(0xFFDC2626),
+          0,
         ),
         _buildStatCard(
           'Total Complaints',
           stats.totalComplaints.toString(),
-          Icons.report_problem,
+          Icons.report_gmailerrorred_rounded,
           const Color(0xFFEF4444),
+          1,
         ),
         _buildStatCard(
           'Completed',
           stats.completedComplaints.toString(),
-          Icons.check_circle,
+          Icons.check_circle_rounded,
           const Color(0xFF10B981),
+          2,
         ),
         _buildStatCard(
           'Warranties',
           stats.totalWarranties.toString(),
-          Icons.verified_user,
-          const Color(0xFF8B5CF6),
+          Icons.verified_rounded,
+          const Color(0xFFF59E0B),
+          3,
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, int index) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 600 + (index * 100)),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutBack,
+      builder: (context, animValue, child) {
+        return Transform.scale(
+          scale: animValue,
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.7)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 18),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      letterSpacing: -1,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -276,9 +343,23 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
     return Column(
       children: [
         _buildActionCard(
+          'Warranty Approvals',
+          'Review pending warranties',
+          Icons.pending_actions_rounded,
+          const Color(0xFFDC2626),
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WarrantyApprovalsPage()),
+            );
+          },
+          0,
+        ),
+        const SizedBox(height: 16),
+        _buildActionCard(
           'Active Tickets',
           '${stats.totalComplaints - stats.completedComplaints} active',
-          Icons.assignment,
+          Icons.confirmation_number_rounded,
           const Color(0xFFEF4444),
           () {
             Navigator.push(
@@ -286,25 +367,27 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
               MaterialPageRoute(builder: (_) => const ActiveTicketsPage()),
             );
           },
+          1,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildActionCard(
           'Find Users',
           'Search and manage customers',
-          Icons.person_search,
-          const Color(0xFF3B82F6),
+          Icons.person_search_rounded,
+          const Color(0xFFF59E0B),
           () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FindUsersPage()),
             );
           },
+          2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildActionCard(
           'Field Technicians',
           '${stats.totalFieldPersonnel} personnel',
-          Icons.engineering,
+          Icons.engineering_rounded,
           const Color(0xFF10B981),
           () {
             Navigator.push(
@@ -312,19 +395,21 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
               MaterialPageRoute(builder: (_) => const FieldTechniciansPage()),
             );
           },
+          3,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildActionCard(
           'Installers',
           '${stats.totalInstallers} installers',
-          Icons.build,
-          const Color(0xFF8B5CF6),
+          Icons.build_circle_rounded,
+          const Color(0xFF3B82F6),
           () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const InstallersPage()),
             );
           },
+          4,
         ),
       ],
     );
@@ -336,64 +421,99 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> {
     IconData icon,
     Color color,
     VoidCallback onTap,
+    int index,
   ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 400 + (index * 100)),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOut,
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [color, color.withOpacity(0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 28),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.arrow_forward_rounded, size: 20, color: color),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

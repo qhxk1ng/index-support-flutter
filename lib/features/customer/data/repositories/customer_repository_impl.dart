@@ -5,6 +5,7 @@ import '../../domain/entities/complaint_entity.dart';
 import '../../domain/entities/warranty_entity.dart';
 import '../../domain/repositories/customer_repository.dart';
 import '../datasources/customer_remote_data_source.dart';
+import '../models/warranty_model.dart';
 
 class CustomerRepositoryImpl implements CustomerRepository {
   final CustomerRemoteDataSource remoteDataSource;
@@ -68,14 +69,36 @@ class CustomerRepositoryImpl implements CustomerRepository {
   }
 
   @override
+  Future<Either<Failure, ProductModel>> validateSerial(String serialNumber) async {
+    try {
+      final result = await remoteDataSource.validateSerial(serialNumber);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, WarrantyEntity>> registerWarranty({
-    required String productId,
     required String serialNumber,
+    required int manufacturingMonth,
+    required int manufacturingYear,
+    DateTime? purchaseDate,
+    required String invoiceUrl,
   }) async {
     try {
       final result = await remoteDataSource.registerWarranty(
-        productId: productId,
         serialNumber: serialNumber,
+        manufacturingMonth: manufacturingMonth,
+        manufacturingYear: manufacturingYear,
+        purchaseDate: purchaseDate,
+        invoiceUrl: invoiceUrl,
       );
       return Right(result);
     } on ServerException catch (e) {

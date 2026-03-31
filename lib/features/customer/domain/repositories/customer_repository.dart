@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/complaint_entity.dart';
 import '../entities/warranty_entity.dart';
+import '../../data/models/warranty_model.dart';
 
 abstract class CustomerRepository {
   Future<Either<Failure, ComplaintEntity>> raiseComplaint({
@@ -16,9 +17,14 @@ abstract class CustomerRepository {
 
   Future<Either<Failure, ComplaintEntity>> getComplaintDetails(String id);
 
+  Future<Either<Failure, ProductModel>> validateSerial(String serialNumber);
+
   Future<Either<Failure, WarrantyEntity>> registerWarranty({
-    required String productId,
     required String serialNumber,
+    required int manufacturingMonth,
+    required int manufacturingYear,
+    DateTime? purchaseDate,
+    required String invoiceUrl,
   });
 
   Future<Either<Failure, List<WarrantyEntity>>> getWarranties();

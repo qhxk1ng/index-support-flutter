@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/complaint_entity.dart';
 import '../../domain/entities/warranty_entity.dart';
+import '../../data/models/warranty_model.dart';
 
 abstract class CustomerState extends Equatable {
   const CustomerState();
@@ -38,6 +39,16 @@ class ComplaintDetailsLoaded extends CustomerState {
 
   @override
   List<Object> get props => [complaint];
+}
+
+class SerialValidated extends CustomerState {
+  final String serialNumber;
+  final ProductModel product;
+
+  const SerialValidated({required this.serialNumber, required this.product});
+
+  @override
+  List<Object> get props => [serialNumber, product];
 }
 
 class WarrantyRegistered extends CustomerState {
