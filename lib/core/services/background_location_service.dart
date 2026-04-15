@@ -40,12 +40,18 @@ class _LocationTaskHandler extends TaskHandler {
       if (position == null || now.difference(position.timestamp).inMinutes >= 2) {
         try {
           position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.medium,
+            desiredAccuracy: LocationAccuracy.high,
             timeLimit: const Duration(seconds: 15),
           );
         } catch (_) {}
       }
       if (position == null) return;
+
+      // Skip low-accuracy GPS readings
+      if (position.accuracy > 50) {
+        debugPrint('Background: skipping inaccurate GPS (${position.accuracy}m)');
+        return;
+      }
 
       const storage = FlutterSecureStorage();
       final token = await storage.read(key: AppConstants.tokenKey);
@@ -57,11 +63,19 @@ class _LocationTaskHandler extends TaskHandler {
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
       ));
-      await dio.post('/field-personnel/heartbeat', data: {
+      final body = <String, dynamic>{
         'latitude': position.latitude,
         'longitude': position.longitude,
-      });
-      debugPrint('Heartbeat sent: ${position.latitude}, ${position.longitude}');
+        'accuracy': position.accuracy,
+      };
+      if (position.speed >= 0) body['speed'] = position.speed;
+      if (position.heading >= 0) body['heading'] = position.heading;
+      try {
+        await dio.post('/location/heartbeat', data: body);
+      } catch (_) {
+        await dio.post('/field-personnel/heartbeat', data: body);
+      }
+      debugPrint('Heartbeat sent: ${position.latitude}, ${position.longitude} (acc: ${position.accuracy}m)');
     } catch (e) {
       debugPrint('Heartbeat error: $e');
     }
@@ -83,7 +97,7 @@ class BackgroundLocationService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(30000),
+        eventAction: ForegroundTaskEventAction.repeat(10000),
         autoRunOnBoot: false,
         allowWakeLock: true,
       ),

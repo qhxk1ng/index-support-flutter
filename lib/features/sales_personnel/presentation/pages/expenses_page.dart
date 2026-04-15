@@ -135,6 +135,7 @@ class _RecordExpenseFormState extends State<_RecordExpenseForm> {
       expenseType: _expenseType,
       amount: double.parse(_amountController.text.trim()),
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      receiptImageFiles: List.from(_receiptImages),
       expenseDate: _expenseDate,
     ));
   }

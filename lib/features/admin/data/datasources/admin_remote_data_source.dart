@@ -55,6 +55,10 @@ abstract class AdminRemoteDataSource {
 
   Future<void> rejectWarranty({required String warrantyId, required String reason});
 
+  Future<Map<String, dynamic>> getStaffRoute(String id, {String? startDate, String? endDate});
+
+  Future<List<Map<String, dynamic>>> getLiveTracking();
+
 }
 
 
@@ -293,6 +297,27 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
     await apiClient.post('/admin/warranty/warranties/$warrantyId/reject', data: {'reason': reason});
 
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getLiveTracking() async {
+    final response = await apiClient.get(ApiEndpoints.liveTracking);
+    return (response.data['data'] as List)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  @override
+  Future<Map<String, dynamic>> getStaffRoute(String id, {String? startDate, String? endDate}) async {
+    final queryParams = <String, dynamic>{};
+    if (startDate != null) queryParams['startDate'] = startDate;
+    if (endDate != null) queryParams['endDate'] = endDate;
+
+    final response = await apiClient.get(
+      ApiEndpoints.getStaffRoute(id),
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    );
+    return response.data['data'] as Map<String, dynamic>;
   }
 
 }

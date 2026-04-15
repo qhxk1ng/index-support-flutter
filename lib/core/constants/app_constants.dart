@@ -12,10 +12,15 @@ class AppConstants {
   static const String jsonContentType = 'application/json';
   static const String multipartContentType = 'multipart/form-data';
   
-  static const String mapboxPublicToken = String.fromEnvironment(
-    'MAPBOX_PUBLIC_TOKEN',
-    defaultValue: '',
-  );
+  // Self-hosted Valhalla routing engine
+  static const String valhallaBaseUrl = 'https://maps.indexinformatics.in';
+
+  // Self-hosted TileServer GL
+  static const String tileUrl =
+      'https://tiles.indexinformatics.in/styles/basic-preview/{z}/{x}/{y}.png';
+
+  static const double tileSize = 256.0;
+  static const double tileZoomOffset = 0.0;
 }
 
 class ApiEndpoints {
@@ -61,6 +66,8 @@ class ApiEndpoints {
   static String approveInstallation(String id) => '/admin/installation/$id/approve';
   static const String fieldVisits = '/admin/field-visits';
   static const String reports = '/admin/reports';
+  static String getStaffRoute(String id) => '/admin/staff/$id/route';
+  static const String liveTracking = '/admin/live-tracking';
   
   static const String createProduct = '/warranty/product';
   static const String getProducts = '/warranty/products';

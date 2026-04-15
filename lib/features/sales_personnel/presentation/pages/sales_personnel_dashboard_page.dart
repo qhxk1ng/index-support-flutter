@@ -12,6 +12,7 @@ import 'log_activity_page.dart';
 import 'sales_leads_page.dart';
 import 'expenses_page.dart';
 import 'activities_list_page.dart';
+import '../../../../core/services/background_location_service.dart';
 
 class SalesPersonnelDashboardPage extends StatefulWidget {
   const SalesPersonnelDashboardPage({super.key});
@@ -30,6 +31,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   @override
   void initState() {
     super.initState();
+    _startLocationTracking();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -54,6 +56,14 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
 
     _animationController.forward();
     context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      await BackgroundLocationService.start();
+    } catch (e) {
+      debugPrint('Background location start error: $e');
+    }
   }
 
   @override

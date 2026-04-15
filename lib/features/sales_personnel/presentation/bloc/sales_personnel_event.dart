@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:equatable/equatable.dart';
 
 abstract class SalesPersonnelEvent extends Equatable {
@@ -18,8 +19,8 @@ class LogActivityEvent extends SalesPersonnelEvent {
   final double latitude;
   final double longitude;
   final String? address;
-  final String? visitingCardImage;
-  final List<String>? businessImages;
+  final File? visitingCardFile;
+  final List<File> businessImageFiles;
   final String? notes;
 
   const LogActivityEvent({
@@ -29,8 +30,8 @@ class LogActivityEvent extends SalesPersonnelEvent {
     required this.latitude,
     required this.longitude,
     this.address,
-    this.visitingCardImage,
-    this.businessImages,
+    this.visitingCardFile,
+    this.businessImageFiles = const [],
     this.notes,
   });
 
@@ -42,8 +43,8 @@ class LogActivityEvent extends SalesPersonnelEvent {
         latitude,
         longitude,
         address,
-        visitingCardImage,
-        businessImages,
+        visitingCardFile,
+        businessImageFiles,
         notes,
       ];
 }
@@ -121,14 +122,14 @@ class RecordExpenseEvent extends SalesPersonnelEvent {
   final String expenseType;
   final double amount;
   final String? description;
-  final List<String>? receiptImages;
+  final List<File> receiptImageFiles;
   final DateTime expenseDate;
 
   const RecordExpenseEvent({
     required this.expenseType,
     required this.amount,
     this.description,
-    this.receiptImages,
+    this.receiptImageFiles = const [],
     required this.expenseDate,
   });
 
@@ -137,7 +138,7 @@ class RecordExpenseEvent extends SalesPersonnelEvent {
         expenseType,
         amount,
         description,
-        receiptImages,
+        receiptImageFiles,
         expenseDate,
       ];
 }

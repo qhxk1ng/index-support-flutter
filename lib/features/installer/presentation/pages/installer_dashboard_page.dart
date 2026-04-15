@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/services/background_location_service.dart';
 import 'dart:async';
 
 class InstallerDashboardPage extends StatefulWidget {
@@ -21,6 +22,15 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
   void initState() {
     super.initState();
     _loadIssues();
+    _startLocationTracking();
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      await BackgroundLocationService.start();
+    } catch (e) {
+      debugPrint('Background location start error: $e');
+    }
   }
 
   Future<void> _loadIssues() async {

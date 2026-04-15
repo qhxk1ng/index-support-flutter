@@ -119,6 +119,8 @@ class _LogActivityPageState extends State<LogActivityPage> {
         longitude: _longitude!,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        visitingCardFile: _visitingCardImage,
+        businessImageFiles: List.from(_businessImages),
       ),
     );
   }

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/valhalla_service.dart';
 import '../../data/datasources/admin_remote_data_source.dart';
 
 class AdminTrackingPage extends StatefulWidget {
@@ -30,9 +30,9 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   bool _waitingForLocation = false;
   String _lastError = '';
   bool _mapReady = false;
-  bool _useMapbox = false;
   List<LatLng> _routePoints = [];
   double? _roadDistanceKm;
+
 
   @override
   void initState() {
@@ -44,7 +44,6 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
-    _mapController.dispose();
     super.dispose();
   }
 
@@ -85,21 +84,14 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
 
   Future<void> _fetchRoute(double fromLat, double fromLng, double toLat, double toLng) async {
     try {
-      final dio = Dio();
-      final url =
-          'https://router.project-osrm.org/route/v1/driving/$fromLng,$fromLat;$toLng,$toLat'
-          '?overview=full&geometries=geojson';
-      final response = await dio.get(url);
-      final routes = response.data['routes'] as List?;
-      if (routes == null || routes.isEmpty) return;
-      final route = routes[0];
-      final coords = route['geometry']['coordinates'] as List;
-      final points = coords.map<LatLng>((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
-      final distanceMetres = (route['distance'] as num?)?.toDouble() ?? 0;
-      if (mounted) {
+      final result = await ValhallaService.route(
+        LatLng(fromLat, fromLng),
+        LatLng(toLat, toLng),
+      );
+      if (mounted && result.points.length >= 2) {
         setState(() {
-          _routePoints = points;
-          _roadDistanceKm = distanceMetres / 1000;
+          _routePoints = result.points;
+          _roadDistanceKm = result.distanceKm;
         });
       }
     } catch (e) {
@@ -177,12 +169,6 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
     return markers;
   }
 
-  String _getTileUrl() {
-    if (_useMapbox && AppConstants.mapboxPublicToken.isNotEmpty) {
-      return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${AppConstants.mapboxPublicToken}';
-    }
-    return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -201,22 +187,6 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
         backgroundColor: const Color(0xFF6366F1),
         foregroundColor: Colors.white,
         actions: [
-          // Beta: Mapbox toggle
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: TextButton.icon(
-              onPressed: () => setState(() => _useMapbox = !_useMapbox),
-              icon: Icon(
-                _useMapbox ? Icons.map : Icons.layers,
-                color: Colors.white70,
-                size: 18,
-              ),
-              label: Text(
-                _useMapbox ? 'OSM' : 'Mapbox',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ),
-          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTracking,
@@ -282,13 +252,13 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: _getTileUrl(),
+                          urlTemplate: AppConstants.tileUrl,
                           userAgentPackageName: 'com.indexcare.app',
-                          tileSize: _useMapbox ? 512 : 256,
-                          zoomOffset: _useMapbox ? -1 : 0,
+                          tileSize: AppConstants.tileSize,
+                          zoomOffset: AppConstants.tileZoomOffset,
                         ),
                         if (_routePoints.length >= 2)
-                          PolylineLayer(
+                          PolylineLayer<Object>(
                             polylines: [
                               Polyline(
                                 points: _routePoints,

@@ -27,6 +27,7 @@ class _TechnicianLiveLocationPageState extends State<TechnicianLiveLocationPage>
   LatLng? _currentTechnicianLocation;
   bool _isLoadingRoute = false;
 
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +38,6 @@ class _TechnicianLiveLocationPageState extends State<TechnicianLiveLocationPage>
   @override
   void dispose() {
     _locationUpdateTimer?.cancel();
-    _mapController.dispose();
     super.dispose();
   }
 
@@ -255,12 +255,12 @@ class _TechnicianLiveLocationPageState extends State<TechnicianLiveLocationPage>
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${AppConstants.mapboxPublicToken}',
+                      urlTemplate: AppConstants.tileUrl,
                       userAgentPackageName: 'com.indexcare.app',
-                      tileSize: 512,
-                      zoomOffset: -1,
+                      tileSize: AppConstants.tileSize,
+                      zoomOffset: AppConstants.tileZoomOffset,
                     ),
-                    PolylineLayer(
+                    PolylineLayer<Object>(
                       polylines: _buildPolylines(),
                     ),
                     MarkerLayer(

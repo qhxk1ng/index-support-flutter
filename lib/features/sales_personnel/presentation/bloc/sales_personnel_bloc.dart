@@ -58,6 +58,30 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
   ) async {
     emit(SalesPersonnelLoading());
 
+    // Upload visiting card if present
+    String? visitingCardUrl;
+    if (event.visitingCardFile != null) {
+      final uploadResult = await repository.uploadImages([event.visitingCardFile!]);
+      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      if (failed != null) {
+        emit(SalesPersonnelError(message: 'Failed to upload visiting card: $failed'));
+        return;
+      }
+      visitingCardUrl = uploadResult.getOrElse(() => []).firstOrNull;
+    }
+
+    // Upload business images if present
+    List<String>? businessImageUrls;
+    if (event.businessImageFiles.isNotEmpty) {
+      final uploadResult = await repository.uploadImages(event.businessImageFiles);
+      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      if (failed != null) {
+        emit(SalesPersonnelError(message: 'Failed to upload business images: $failed'));
+        return;
+      }
+      businessImageUrls = uploadResult.getOrElse(() => []);
+    }
+
     final result = await repository.logActivity(
       customerName: event.customerName,
       businessName: event.businessName,
@@ -65,8 +89,8 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
       latitude: event.latitude,
       longitude: event.longitude,
       address: event.address,
-      visitingCardImage: event.visitingCardImage,
-      businessImages: event.businessImages,
+      visitingCardImage: visitingCardUrl,
+      businessImages: businessImageUrls,
       notes: event.notes,
     );
 
@@ -154,11 +178,23 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
   ) async {
     emit(SalesPersonnelLoading());
 
+    // Upload receipt images if present
+    List<String>? receiptUrls;
+    if (event.receiptImageFiles.isNotEmpty) {
+      final uploadResult = await repository.uploadImages(event.receiptImageFiles);
+      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      if (failed != null) {
+        emit(SalesPersonnelError(message: 'Failed to upload receipts: $failed'));
+        return;
+      }
+      receiptUrls = uploadResult.getOrElse(() => []);
+    }
+
     final result = await repository.recordExpense(
       expenseType: event.expenseType,
       amount: event.amount,
       description: event.description,
-      receiptImages: event.receiptImages,
+      receiptImages: receiptUrls,
       expenseDate: event.expenseDate,
     );
 

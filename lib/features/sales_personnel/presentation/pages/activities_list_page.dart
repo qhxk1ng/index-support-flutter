@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
 import '../bloc/sales_personnel_bloc.dart';
 import '../bloc/sales_personnel_event.dart';
@@ -211,9 +214,32 @@ class _ActivitiesListPageState extends State<ActivitiesListPage> {
                       '${activity.createdAt.day}/${activity.createdAt.month}/${activity.createdAt.year}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
-                    Text(
-                      'Lat: ${activity.latitude.toStringAsFixed(4)}, Lng: ${activity.longitude.toStringAsFixed(4)}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                    GestureDetector(
+                      onTap: () => _showLocationMap(
+                        context,
+                        activity.latitude,
+                        activity.longitude,
+                        activity.customerName,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF6366F1).withAlpha(60)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.map_rounded, size: 13, color: Color(0xFF6366F1)),
+                            SizedBox(width: 4),
+                            Text(
+                              'View on Map',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -221,6 +247,78 @@ class _ActivitiesListPageState extends State<ActivitiesListPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLocationMap(BuildContext context, double lat, double lng, String label) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.place, color: Color(0xFF6366F1), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 320,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(lat, lng),
+                    initialZoom: 15,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: AppConstants.tileUrl,
+                      userAgentPackageName: 'com.indexcare.app',
+                      tileSize: AppConstants.tileSize,
+                      zoomOffset: AppConstants.tileZoomOffset,
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(lat, lng),
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Color(0xFF6366F1),
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

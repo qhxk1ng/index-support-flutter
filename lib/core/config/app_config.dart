@@ -1,6 +1,9 @@
 class AppConfig {
   static const String appName = 'Index Care';
-  static const String baseUrl = 'https://api.indexinformatics.in';
+  static const String baseUrl = String.fromEnvironment(
+    'BASE_URL',
+    defaultValue: 'https://api.indexinformatics.in',
+  );
   static const String apiVersion = '/api';
   
   static const int connectionTimeout = 30000;
@@ -15,7 +18,7 @@ class AppConfig {
   static const double defaultLatitude = 0.0;
   static const double defaultLongitude = 0.0;
   
-  static const int locationUpdateInterval = 30000;
+  static const int locationUpdateInterval = 10000;
   
   static String get fullBaseUrl => '$baseUrl$apiVersion';
 }

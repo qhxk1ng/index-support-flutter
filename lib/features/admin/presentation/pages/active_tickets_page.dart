@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/admin_entities.dart';
 import '../bloc/admin_bloc.dart';
@@ -653,10 +654,15 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
             children: images.asMap().entries.map((entry) {
               final index = entry.key;
               final imageUrl = entry.value;
-              // Handle both absolute and relative URLs
-              final fullUrl = imageUrl.startsWith('http')
-                  ? imageUrl
-                  : 'http://api.indexinformatics.in$imageUrl';
+              // Normalize to HTTPS — stored URLs may be http:// or relative
+              String fullUrl;
+              if (imageUrl.startsWith('http://')) {
+                fullUrl = imageUrl.replaceFirst('http://', 'https://');
+              } else if (imageUrl.startsWith('https://')) {
+                fullUrl = imageUrl;
+              } else {
+                fullUrl = '${AppConfig.baseUrl}$imageUrl';
+              }
               return InkWell(
                 onTap: () => _showFullImage(context, fullUrl, index + 1, images.length),
                 child: Container(

@@ -11,6 +11,8 @@ import 'active_tickets_page.dart';
 import 'find_users_page.dart';
 import 'field_technicians_page.dart';
 import 'installers_page.dart';
+import 'live_tracking_overview_page.dart';
+import 'field_staff_sales_page.dart';
 import 'warranty_approvals_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
@@ -410,6 +412,34 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
             );
           },
           4,
+        ),
+        const SizedBox(height: 16),
+        _buildActionCard(
+          'Field Staff & Sales',
+          'Field personnel & sales team',
+          Icons.people_alt_rounded,
+          const Color(0xFF0EA5E9),
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FieldStaffSalesPage()),
+            );
+          },
+          5,
+        ),
+        const SizedBox(height: 16),
+        _buildActionCard(
+          'Live Tracking',
+          'View all staff on map',
+          Icons.map_rounded,
+          const Color(0xFF6366F1),
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LiveTrackingOverviewPage()),
+            );
+          },
+          6,
         ),
       ],
     );

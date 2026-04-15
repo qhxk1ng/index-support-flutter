@@ -46,13 +46,13 @@ class LocationTrackingService {
       // Send initial heartbeat
       await _sendHeartbeat();
       
-      // Location update every 15 seconds
-      _locationTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+      // Location update every 3 seconds for denser GPS traces
+      _locationTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
         await _updateLocation();
       });
       
-      // Heartbeat every 45 seconds to mark technician as online
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 45), (timer) async {
+      // Heartbeat every 30 seconds to mark technician as online
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
         await _sendHeartbeat();
       });
     } catch (e) {
@@ -66,20 +66,29 @@ class LocationTrackingService {
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      // Filter out low-accuracy GPS readings (indoor, tunnel, cold start)
+      if (position.accuracy > 50) {
+        print('Skipping inaccurate GPS point (accuracy: ${position.accuracy}m)');
+        return;
+      }
+
       _lastKnownPosition = position;
-      await _sendLocationToServer(position.latitude, position.longitude);
+      await _sendLocationToServer(position);
     } catch (e) {
       print('Error updating location: $e');
     }
   }
 
-  Future<void> _sendLocationToServer(double latitude, double longitude) async {
+  Future<void> _sendLocationToServer(Position position) async {
     try {
       await _apiClient.post(
         '/field-personnel/location',
         data: {
-          'latitude': latitude,
-          'longitude': longitude,
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'accuracy': position.accuracy,
+          'speed': position.speed >= 0 ? position.speed : null,
+          'heading': position.heading >= 0 ? position.heading : null,
           'timestamp': DateTime.now().toIso8601String(),
         },
       );
@@ -96,6 +105,9 @@ class LocationTrackingService {
       if (_lastKnownPosition != null) {
         data['latitude'] = _lastKnownPosition!.latitude;
         data['longitude'] = _lastKnownPosition!.longitude;
+        data['accuracy'] = _lastKnownPosition!.accuracy;
+        if (_lastKnownPosition!.speed >= 0) data['speed'] = _lastKnownPosition!.speed;
+        if (_lastKnownPosition!.heading >= 0) data['heading'] = _lastKnownPosition!.heading;
       }
       
       await _apiClient.post(

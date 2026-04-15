@@ -61,7 +61,7 @@ dependencies:
   
 
   # QR Code
-  qr_code_scanner: ^1.0.1
+  mobile_scanner: ^5.2.3
   qr_flutter: ^4.1.0
 
 dev_dependencies:

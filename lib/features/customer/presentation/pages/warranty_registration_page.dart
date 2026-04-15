@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import '../bloc/customer_bloc.dart';
@@ -45,8 +45,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
   final _imagePicker = ImagePicker();
 
   // QR
-  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? _qrController;
+  MobileScannerController? _qrController;
   bool _qrProcessed = false;
 
   // Animations
@@ -76,17 +75,15 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
     super.dispose();
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    _qrController = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (_qrProcessed) return;
-      final code = scanData.code?.trim().toUpperCase();
-      if (code != null && code.isNotEmpty) {
-        _qrProcessed = true;
-        _qrController?.pauseCamera();
-        _validateSerial(code);
-      }
-    });
+  void _onDetect(BarcodeCapture capture) {
+    if (_qrProcessed) return;
+    final barcode = capture.barcodes.firstOrNull;
+    final code = barcode?.displayValue?.trim().toUpperCase();
+    if (code != null && code.isNotEmpty) {
+      _qrProcessed = true;
+      _qrController?.stop();
+      _validateSerial(code);
+    }
   }
 
   void _validateSerial(String serial) {
@@ -194,6 +191,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
   }
 
   void _reset() {
+    _qrController?.stop();
     _qrController?.dispose();
     _qrController = null;
     _qrProcessed = false;
@@ -225,7 +223,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
           if (_step == 1) {
             setState(() {
               _qrProcessed = false;
-              _qrController?.resumeCamera();
+              _qrController?.start();
             });
           }
           _showError(state.message);
@@ -389,21 +387,27 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
 
   // ── Step 1: QR Scanner ─────────────────────────────────────────────────────
   Widget _buildQRScanner() {
+    _qrController ??= MobileScannerController();
     return BlocBuilder<CustomerBloc, CustomerState>(
       builder: (context, state) {
         final isLoading = state is CustomerLoading;
+        final cutOutSize = MediaQuery.of(context).size.width * 0.7;
         return Stack(
           key: const ValueKey('qr'),
           children: [
-            QRView(
-              key: _qrKey,
-              onQRViewCreated: _onQRViewCreated,
-              overlay: QrScannerOverlayShape(
-                borderColor: _green,
-                borderRadius: 12,
-                borderLength: 32,
-                borderWidth: 6,
-                cutOutSize: MediaQuery.of(context).size.width * 0.7,
+            MobileScanner(
+              controller: _qrController!,
+              onDetect: _onDetect,
+            ),
+            // Scan overlay
+            Center(
+              child: Container(
+                width: cutOutSize,
+                height: cutOutSize,
+                decoration: BoxDecoration(
+                  border: Border.all(color: _green, width: 6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             // Top label
@@ -459,6 +463,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
                           const SizedBox(height: 8),
                           TextButton(
                             onPressed: () {
+                              _qrController?.stop();
                               _qrController?.dispose();
                               _qrController = null;
                               setState(() => _step = 2);

@@ -84,6 +84,29 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
   }
 
   Future<void> _checkOnboarding() async {
+    // Check if all permissions are already granted — skip onboarding entirely
+    bool allGranted = true;
+    for (final step in _steps) {
+      final status = await step.permission.status;
+      if (!status.isGranted) {
+        allGranted = false;
+        break;
+      }
+    }
+
+    if (allGranted) {
+      // All permissions granted — never show onboarding again
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, true);
+      if (mounted) {
+        setState(() {
+          _onboardingDone = true;
+          _loading = false;
+        });
+      }
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final done = prefs.getBool(_prefKey) ?? false;
     if (mounted) {

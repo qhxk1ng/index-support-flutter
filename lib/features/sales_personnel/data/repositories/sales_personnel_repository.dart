@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
@@ -8,6 +10,24 @@ class SalesPersonnelRepository {
   final ApiClient apiClient;
 
   SalesPersonnelRepository({required this.apiClient});
+
+  Future<Either<Failure, List<String>>> uploadImages(List<File> files) async {
+    if (files.isEmpty) return const Right([]);
+    try {
+      final formData = FormData();
+      for (final file in files) {
+        formData.files.add(MapEntry(
+          'images',
+          await MultipartFile.fromFile(file.path, filename: file.path.split(Platform.pathSeparator).last),
+        ));
+      }
+      final response = await apiClient.uploadFile('/upload/images', formData);
+      final urls = List<String>.from(response.data['data'] ?? []);
+      return Right(urls);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 
   Future<Either<Failure, SalesPersonnelProfile>> getProfile() async {
     try {

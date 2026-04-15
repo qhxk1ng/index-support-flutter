@@ -122,23 +122,44 @@ class _LoginPageState extends State<LoginPage>
 
   String _sanitizeError(String message) {
     final lower = message.toLowerCase();
-    if (lower.contains('dioexception') ||
-        lower.contains('socketexception') ||
-        lower.contains('serverexception') ||
-        lower.contains('networkexception') ||
-        lower.contains('connection refused') ||
-        lower.contains('handshakeexception') ||
-        lower.contains('errno') ||
-        lower.contains('type \'') ||
-        lower.contains('unexpected character')) {
-      return 'Something went wrong. Please try again.';
+
+    // Wrong password / invalid credentials
+    if (lower.contains('invalid password') ||
+        lower.contains('invalid credentials')) {
+      return 'Wrong password. Please try again.';
     }
+
+    // No internet / network errors
+    if (lower.contains('no internet') ||
+        lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('network error')) {
+      return 'No internet connection. Please check your network and try again.';
+    }
+
+    // Timeout
     if (lower.contains('timeout')) {
       return 'Connection timed out. Please check your internet.';
     }
-    if (lower.contains('no internet') || lower.contains('network')) {
-      return 'No internet connection. Please check your network.';
+
+    // Server errors (500, 502, 503, etc.)
+    if (lower.contains('server error') ||
+        lower.contains('502') ||
+        lower.contains('503')) {
+      return 'Server is not responding. Please try again later.';
     }
+
+    // Catch-all for raw technical errors
+    if (lower.contains('dioexception') ||
+        lower.contains('handshakeexception') ||
+        lower.contains('errno') ||
+        lower.contains('type \'') ||
+        lower.contains('unexpected character') ||
+        lower.contains('serverexception') ||
+        lower.contains('networkexception')) {
+      return 'Something went wrong. Please try again later.';
+    }
+
     return message;
   }
 
@@ -615,7 +636,30 @@ class _LoginPageState extends State<LoginPage>
                           ),
                         ),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 16),
+
+                        // Admin login link
+                        FadeTransition(
+                          opacity: _formFade,
+                          child: GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminLoginPage(),
+                              ),
+                            ),
+                            child: Text(
+                              'Admin Login',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[400],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
@@ -651,11 +695,11 @@ class _LoginPageState extends State<LoginPage>
       enabled: enabled,
       textInputAction: textInputAction,
       onFieldSubmitted: onSubmitted,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14),
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
         labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
         prefixIcon: Icon(icon, color: const Color(0xFF2563EB), size: 20),
         suffixIcon: suffixIcon,
