@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -19,8 +20,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _addressController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   
   String _selectedRole = 'CUSTOMER';
   double? _latitude;
@@ -29,7 +33,6 @@ class _RegisterPageState extends State<RegisterPage> {
   
   final List<Map<String, String>> _roles = [
     {'value': 'CUSTOMER', 'label': 'Customer', 'icon': '👤'},
-    {'value': 'INSTALLER', 'label': 'Installer', 'icon': '🔧'},
     {'value': 'FIELD_PERSONNEL', 'label': 'Field Personnel', 'icon': '🚗'},
     {'value': 'SALES_PERSONNEL', 'label': 'Sales Personnel', 'icon': '💼'},
   ];
@@ -38,8 +41,9 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _phoneController.dispose();
     _nameController.dispose();
-    _emailController.dispose();
     _addressController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
   
@@ -155,9 +159,9 @@ class _RegisterPageState extends State<RegisterPage> {
       
       context.read<AuthBloc>().add(
         RegisterEvent(
-          phoneNumber: _phoneController.text.trim(),
+          phoneNumber: '+91${_phoneController.text.trim()}',
           name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
+          email: '',
           role: _selectedRole,
           latitude: _latitude!,
           longitude: _longitude!,
@@ -188,15 +192,23 @@ class _RegisterPageState extends State<RegisterPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => OtpVerificationPage(
-                  phoneNumber: state.phoneNumber,
+                  phoneNumber: '+91${_phoneController.text.trim()}',
                   userId: state.userId,
+                  password: _passwordController.text,
                 ),
               ),
             );
           } else if (state is AuthError) {
+            String errorMsg = state.message;
+            final lower = errorMsg.toLowerCase();
+            if (lower.contains('already registered')) {
+              errorMsg = 'This phone number is already registered. Please login instead.';
+            } else if (lower.contains('otp') && lower.contains('fail')) {
+              errorMsg = 'Failed to send OTP. Please try again.';
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
+                content: Text(errorMsg),
                 backgroundColor: AppColors.error,
               ),
             );
@@ -262,26 +274,21 @@ class _RegisterPageState extends State<RegisterPage> {
                     CustomTextField(
                       controller: _phoneController,
                       label: 'Phone Number',
-                      hint: '+1234567890',
-                      keyboardType: TextInputType.phone,
+                      hint: '9876543210',
+                      keyboardType: TextInputType.number,
                       prefixIcon: const Icon(Icons.phone),
+                      prefixText: '+91 ',
                       validator: Validators.validatePhone,
                       enabled: !isLoading,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       textInputAction: TextInputAction.next,
                     ),
                     
                     const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _emailController,
-                      label: 'Email Address',
-                      hint: 'john@example.com',
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      validator: Validators.validateEmail,
-                      enabled: !isLoading,
-                      textInputAction: TextInputAction.next,
-                    ),
                     
                     const SizedBox(height: 24),
                     
@@ -442,6 +449,74 @@ class _RegisterPageState extends State<RegisterPage> {
                       isLoading: _isLoadingLocation,
                       icon: Icons.my_location,
                       isOutlined: true,
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    const SizedBox(height: 16),
+                    
+                    CustomTextField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      hint: 'Min 6 characters',
+                      obscureText: _obscurePassword,
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                      enabled: !isLoading,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    CustomTextField(
+                      controller: _confirmPasswordController,
+                      label: 'Confirm Password',
+                      hint: 'Re-enter your password',
+                      obscureText: _obscureConfirmPassword,
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please confirm your password';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                      enabled: !isLoading,
+                      textInputAction: TextInputAction.done,
                     ),
                     
                     const SizedBox(height: 24),

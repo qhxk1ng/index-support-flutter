@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
@@ -30,7 +31,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
         AdminLoginEvent(
-          phoneNumber: _phoneController.text.trim(),
+          phoneNumber: '+91${_phoneController.text.trim()}',
           password: _passwordController.text,
         ),
       );
@@ -59,9 +60,18 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               (route) => false,
             );
           } else if (state is AuthError) {
+            String errorMsg = state.message;
+            final lower = errorMsg.toLowerCase();
+            if (lower.contains('invalid credentials')) {
+              errorMsg = 'Invalid admin phone number or password.';
+            } else if (lower.contains('invalid password')) {
+              errorMsg = 'Wrong password. Please try again.';
+            } else if (lower.contains('not found')) {
+              errorMsg = 'Admin account not found.';
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
+                content: Text(errorMsg),
                 backgroundColor: AppColors.error,
               ),
             );
@@ -154,11 +164,17 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     CustomTextField(
                       controller: _phoneController,
                       label: 'Admin Phone Number',
-                      hint: '+1234567890',
-                      keyboardType: TextInputType.phone,
+                      hint: '9876543210',
+                      keyboardType: TextInputType.number,
                       prefixIcon: const Icon(Icons.phone),
+                      prefixText: '+91 ',
                       validator: Validators.validatePhone,
                       enabled: !isLoading,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       textInputAction: TextInputAction.next,
                     ),
                     

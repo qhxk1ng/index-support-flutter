@@ -268,13 +268,7 @@ class CustomerWarrantyDetailsPage extends StatelessWidget {
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 200,
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Icon(Icons.error, color: Colors.red),
-                    ),
-                  ),
+                  errorWidget: (context, url, error) => _buildImageFallback(),
                 ),
               ),
             ),
@@ -385,6 +379,16 @@ class CustomerWarrantyDetailsPage extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildImageFallback() {
+    return Container(
+      height: 200,
+      color: Colors.grey[200],
+      child: const Center(
+        child: Icon(Icons.error, color: Colors.red),
+      ),
+    );
+  }
 }
 
 class _FullScreenImage extends StatelessWidget {
@@ -395,6 +399,14 @@ class _FullScreenImage extends StatelessWidget {
     required this.imageUrl,
     required this.title,
   });
+
+  Widget _buildFallback() {
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: const Icon(Icons.image_not_supported, color: Colors.white70, size: 64),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -413,9 +425,7 @@ class _FullScreenImage extends StatelessWidget {
             placeholder: (context, url) => const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
-            errorWidget: (context, url, error) => const Center(
-              child: Icon(Icons.error, color: Colors.white, size: 48),
-            ),
+            errorWidget: (context, url, error) => _buildFallback(),
           ),
         ),
       ),

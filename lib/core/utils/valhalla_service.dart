@@ -25,7 +25,7 @@ class ValhallaService {
     // Also filter corresponding timestamps/headings in sync
     final filterResult = _filterNearDuplicatesWithMeta(points, 20.0, timestamps, headings);
     final filtered = filterResult.points;
-    if (filtered.length < 2) return [];
+    if (filtered.length < 2) return points;
 
     debugPrint('Valhalla: ${points.length} raw → ${filtered.length} filtered points');
 
@@ -40,7 +40,7 @@ class ValhallaService {
     debugPrint('Valhalla trace_route failed, using route fallback');
     final routed = await _routeAlongWaypoints(filtered);
     debugPrint('Valhalla route fallback: ${routed.length} points');
-    return routed;
+    return routed.length >= 2 ? routed : filtered;
   }
 
   // Try Valhalla trace_route with minimal request body.
@@ -85,6 +85,8 @@ class ValhallaService {
             'shape': shape,
             'costing': 'auto',
             'shape_match': 'map_snap',
+            'search_radius': 50,
+            'gps_accuracy': 20,
           },
           options: Options(
             contentType: 'application/json',
@@ -113,14 +115,19 @@ class ValhallaService {
         debugPrint('trace_route batch error: $e');
       }
 
-      if (batchSnapped != null && batchSnapped.length >= 2) {
+      // Validate: snapped result should have significantly more points than input
+      // (road-snapped routes add intermediate road geometry). If not, snap was poor.
+      final snapRatio = batchSnapped != null && batch.isNotEmpty
+          ? batchSnapped.length / batch.length
+          : 0.0;
+      if (batchSnapped != null && batchSnapped.length >= 2 && snapRatio > 1.5) {
         if (allSnapped.isNotEmpty && _samePoint(allSnapped.last, batchSnapped.first)) {
           batchSnapped.removeAt(0);
         }
         allSnapped.addAll(batchSnapped);
       } else {
         // Fallback: route this segment via waypoints
-        debugPrint('trace_route batch ${start ~/ batchSize} failed, using route fallback for segment');
+        debugPrint('trace_route batch ${start ~/ batchSize} ${batchSnapped != null ? "poor quality (ratio ${snapRatio.toStringAsFixed(1)})" : "failed"}, using route fallback');
         final routed = await _routeAlongWaypoints(batch);
         if (allSnapped.isNotEmpty && routed.isNotEmpty && _samePoint(allSnapped.last, routed.first)) {
           routed.removeAt(0);

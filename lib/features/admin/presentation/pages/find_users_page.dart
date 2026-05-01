@@ -127,6 +127,14 @@ class _FindUsersPageState extends State<FindUsersPage> with TickerProviderStateM
     );
   }
 
+  Widget _buildImageFallback() {
+    return Container(
+      color: Colors.grey[200],
+      alignment: Alignment.center,
+      child: Icon(Icons.image_not_supported, size: 48, color: Colors.grey[600]),
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -780,9 +788,7 @@ class _FindUsersPageState extends State<FindUsersPage> with TickerProviderStateM
                         placeholder: (context, url) => const Center(
                           child: CircularProgressIndicator(),
                         ),
-                        errorWidget: (context, url, error) => const Center(
-                          child: Icon(Icons.error, size: 48, color: Colors.red),
-                        ),
+                        errorWidget: (context, url, error) => _buildImageFallback(),
                       ),
                     ),
                   ),

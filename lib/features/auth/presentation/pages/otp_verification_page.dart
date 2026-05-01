@@ -5,16 +5,21 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
+import 'login_page.dart';
 import 'set_password_page.dart';
 
 class OtpVerificationPage extends StatefulWidget {
   final String phoneNumber;
   final String? userId;
+  final String? password;
+  final String otpType;
   
   const OtpVerificationPage({
     super.key,
     required this.phoneNumber,
     this.userId,
+    this.password,
+    this.otpType = 'REGISTRATION',
   });
   
   @override
@@ -43,8 +48,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         return;
       }
       
-      // Determine type: REGISTRATION if coming from registration, LOGIN otherwise
-      final String type = widget.userId != null && widget.userId!.isNotEmpty ? 'REGISTRATION' : 'LOGIN';
+      final String type = widget.otpType;
       
       context.read<AuthBloc>().add(
         VerifyOtpEvent(
@@ -57,8 +61,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   }
   
   void _handleResendOtp() {
-    // Determine type based on context
-    final String type = widget.userId != null && widget.userId!.isNotEmpty ? 'REGISTRATION' : 'LOGIN';
+    final String type = widget.otpType;
     
     context.read<AuthBloc>().add(
       SendOtpEvent(
@@ -78,15 +81,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is OtpVerified) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Phone number verified successfully!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-            
-            // Navigate to Set Password page if userId is provided (registration flow)
-            if (widget.userId != null) {
+            if (widget.password != null && widget.password!.isNotEmpty && widget.userId != null) {
+              // Registration flow: auto-set password then go to login
+              context.read<AuthBloc>().add(
+                SetPasswordEvent(
+                  userId: widget.userId!,
+                  password: widget.password!,
+                ),
+              );
+            } else if (widget.userId != null) {
+              // Forgot password flow: go to set password page
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -97,9 +101,19 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 ),
               );
             } else {
-              // For login flow, just pop back
               Navigator.pop(context);
             }
+          } else if (state is PasswordSet) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Account created successfully! Please login.'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+              (route) => false,
+            );
           } else if (state is OtpSent) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -108,9 +122,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               ),
             );
           } else if (state is AuthError) {
+            String errorMsg = state.message;
+            final lower = errorMsg.toLowerCase();
+            if (lower.contains('invalid') && lower.contains('otp')) {
+              errorMsg = 'Invalid or expired OTP. Please try again.';
+            } else if (lower.contains('not found')) {
+              errorMsg = 'No valid OTP found. Please request a new one.';
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
+                content: Text(errorMsg),
                 backgroundColor: AppColors.error,
               ),
             );

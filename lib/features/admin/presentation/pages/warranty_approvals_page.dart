@@ -405,9 +405,7 @@ class _WarrantyApprovalsViewState extends State<_WarrantyApprovalsView> with Tic
                                     placeholder: (context, url) => const Center(
                                       child: CircularProgressIndicator(),
                                     ),
-                                    errorWidget: (context, url, error) => const Center(
-                                      child: Icon(Icons.error, size: 48, color: Colors.red),
-                                    ),
+                                    errorWidget: (context, url, error) => _buildImageFallback(),
                                   ),
                                   Positioned(
                                     bottom: 12,
@@ -615,6 +613,15 @@ class _WarrantyApprovalsViewState extends State<_WarrantyApprovalsView> with Tic
     );
   }
 
+  Widget _buildImageFallback() {
+    return Container(
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(Icons.image_not_supported, size: 48, color: Colors.grey[600]),
+      ),
+    );
+  }
+
   void _showFullScreenInvoice(BuildContext context, String invoiceUrl) {
     showDialog(
       context: context,
@@ -633,9 +640,7 @@ class _WarrantyApprovalsViewState extends State<_WarrantyApprovalsView> with Tic
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
-                  errorWidget: (context, url, error) => const Center(
-                    child: Icon(Icons.error, size: 48, color: Colors.white),
-                  ),
+                  errorWidget: (context, url, error) => _buildImageFallback(),
                 ),
               ),
             ),

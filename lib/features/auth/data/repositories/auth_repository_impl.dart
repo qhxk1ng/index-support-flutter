@@ -18,20 +18,24 @@ class AuthRepositoryImpl implements AuthRepository {
   });
 
   String _sanitizeErrorMessage(dynamic error) {
-    final msg = error.toString().toLowerCase();
-    if (msg.contains('dioexception') ||
-        msg.contains('socketexception') ||
-        msg.contains('connection refused') ||
-        msg.contains('handshakeexception') ||
-        msg.contains('errno') ||
-        msg.contains('type \'') ||
-        msg.contains('unexpected character')) {
-      return 'Something went wrong. Please try again.';
+    final msg = error.toString();
+    final lower = msg.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('handshakeexception')) {
+      return 'No internet connection. Please check your network.';
     }
-    if (msg.contains('timeout')) {
+    if (lower.contains('timeout')) {
       return 'Connection timed out. Please check your internet.';
     }
-    return 'An unexpected error occurred. Please try again.';
+    if (lower.contains('dioexception') ||
+        lower.contains('errno') ||
+        lower.contains('type \'') ||
+        lower.contains('unexpected character')) {
+      return 'Something went wrong. Please try again.';
+    }
+    // Preserve readable error messages from the backend
+    return msg.isNotEmpty ? msg : 'An unexpected error occurred. Please try again.';
   }
   
   @override
@@ -290,6 +294,21 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(UnauthorizedFailure(e.message));
     } on ValidationException catch (e) {
       return Left(ValidationFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteAccount() async {
+    try {
+      await remoteDataSource.deleteAccount();
+      await storageService.clearAll();
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
     } catch (e) {
       return Left(ServerFailure(_sanitizeErrorMessage(e)));
     }

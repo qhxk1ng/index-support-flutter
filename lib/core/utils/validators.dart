@@ -4,9 +4,8 @@ class Validators {
       return 'Phone number is required';
     }
     
-    final phoneRegex = RegExp(r'^\+?[1-9]\d{1,14}$');
-    if (!phoneRegex.hasMatch(value)) {
-      return 'Please enter a valid phone number';
+    if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+      return 'Please enter a valid 10-digit phone number';
     }
     
     return null;

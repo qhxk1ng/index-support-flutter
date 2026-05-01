@@ -67,7 +67,8 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
         emit(SalesPersonnelError(message: 'Failed to upload visiting card: $failed'));
         return;
       }
-      visitingCardUrl = uploadResult.getOrElse(() => []).firstOrNull;
+      final urls = uploadResult.getOrElse(() => []);
+      visitingCardUrl = urls.isNotEmpty ? urls.first : null;
     }
 
     // Upload business images if present

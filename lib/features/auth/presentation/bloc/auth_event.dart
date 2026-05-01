@@ -155,4 +155,6 @@ class ChangePasswordEvent extends AuthEvent {
   List<Object> get props => [currentPassword, newPassword];
 }
 
+class DeleteAccountEvent extends AuthEvent {}
+
 class LogoutEvent extends AuthEvent {}

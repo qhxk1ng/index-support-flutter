@@ -1113,6 +1113,8 @@ class _AssignTechnicianDialogState extends State<_AssignTechnicianDialog> {
                                 final isOnline = tech['isOnline'] == true;
                                 final distanceKm = tech['distanceKm'] as num?;
                                 final activeJobs = (tech['activeJobs'] as num?)?.toInt() ?? 0;
+                                final locSource = tech['locationSource'] as String?;
+                                final lastJob = tech['lastJobLocation'] as Map<String, dynamic>?;
 
                                 return Material(
                                   color: Colors.transparent,
@@ -1213,6 +1215,33 @@ class _AssignTechnicianDialogState extends State<_AssignTechnicianDialog> {
                                                     ),
                                                   ],
                                                 ),
+                                                if (locSource != null || lastJob != null) ...[
+                                                  const SizedBox(height: 3),
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        locSource == 'last_job' ? Icons.location_on : locSource == 'registered' ? Icons.home : Icons.gps_fixed,
+                                                        size: 12,
+                                                        color: locSource == 'last_job' ? Colors.green : Colors.blueGrey,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        locSource == 'last_job'
+                                                            ? 'From last job${lastJob?['ticketNumber'] != null ? ' #${lastJob!['ticketNumber']}' : ''}'
+                                                            : locSource == 'registered'
+                                                                ? 'From home location'
+                                                                : locSource == 'gps'
+                                                                    ? 'From GPS'
+                                                                    : 'Unknown source',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: locSource == 'last_job' ? Colors.green : Colors.blueGrey,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                           ),

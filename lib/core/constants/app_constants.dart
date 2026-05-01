@@ -37,6 +37,7 @@ class ApiEndpoints {
   static const String switchRole = '/users/switch-role';
   static const String addRole = '/users/add-role';
   static const String changePassword = '/users/change-password';
+  static const String deleteAccount = '/users/account';
   
   static const String validateSerial = '/customer/warranty/validate-serial';
   static const String registerWarranty = '/customer/warranty/register';
@@ -68,6 +69,7 @@ class ApiEndpoints {
   static const String reports = '/admin/reports';
   static String getStaffRoute(String id) => '/admin/staff/$id/route';
   static const String liveTracking = '/admin/live-tracking';
+  static const String technicianRankings = '/admin/technician-rankings';
   
   static const String createProduct = '/warranty/product';
   static const String getProducts = '/warranty/products';

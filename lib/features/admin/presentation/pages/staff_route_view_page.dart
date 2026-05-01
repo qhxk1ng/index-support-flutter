@@ -95,6 +95,14 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
   String? _startTime;
   String? _endTime;
 
+  // Return route data
+  Map<String, dynamic>? _homeLocation;
+  Map<String, dynamic>? _lastJobLocation;
+  double? _returnDistanceKm;
+  List<LatLng> _returnRoutePoints = [];
+  double? _returnRouteKm;
+  int? _returnRouteMin;
+
   DateTime _selectedDate = DateTime.now();
   Timer? _refreshTimer;
 
@@ -208,6 +216,10 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
       }
       final stops = _detectAndMergeStops(allPts, allTs);
 
+      final homeLoc = data['homeLocation'] as Map<String, dynamic>?;
+      final lastJobLoc = data['lastJobLocation'] as Map<String, dynamic>?;
+      final returnDist = (data['returnDistanceKm'] as num?)?.toDouble();
+
       setState(() {
         _trips = trips;
         _stops = stops;
@@ -216,6 +228,12 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
         _durationMinutes = (data['durationMinutes'] as num?)?.toInt() ?? 0;
         _startTime = data['startTime']?.toString();
         _endTime = data['endTime']?.toString();
+        _homeLocation = homeLoc;
+        _lastJobLocation = lastJobLoc;
+        _returnDistanceKm = returnDist;
+        _returnRoutePoints = [];
+        _returnRouteKm = null;
+        _returnRouteMin = null;
         _isLoading = false;
         _error = null;
       });
@@ -223,6 +241,9 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
       for (final trip in trips) {
         _snapTripToRoads(trip);
       }
+
+      // Calculate return route via Valhalla
+      _calculateReturnRoute();
 
       if (_mapReady && _allPoints.isNotEmpty) {
         _fitBounds(_allPoints);
@@ -319,17 +340,40 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
         headings: trip.headings,
       );
 
-      if (mounted && snapped.length >= 2) {
+      if (mounted) {
         setState(() {
-          trip.snappedPoints = snapped;
+          trip.snappedPoints = snapped.length >= 2 ? snapped : List.from(trip.rawPoints);
           trip.snapping = false;
         });
-      } else {
-        if (mounted) setState(() => trip.snapping = false);
       }
     } catch (e) {
       debugPrint('Snap error for trip ${trip.index}: $e');
       if (mounted) setState(() => trip.snapping = false);
+    }
+  }
+
+  Future<void> _calculateReturnRoute() async {
+    if (_lastJobLocation == null || _homeLocation == null) return;
+    final from = LatLng(
+      (_lastJobLocation!['latitude'] as num).toDouble(),
+      (_lastJobLocation!['longitude'] as num).toDouble(),
+    );
+    final to = LatLng(
+      (_homeLocation!['latitude'] as num).toDouble(),
+      (_homeLocation!['longitude'] as num).toDouble(),
+    );
+    final result = await ValhallaService.route(from, to);
+    if (!mounted) return;
+    if (result.points.length >= 2) {
+      setState(() {
+        _returnRoutePoints = result.points;
+        _returnRouteKm = result.distanceKm;
+      });
+    } else {
+      // Fallback: straight line
+      setState(() {
+        _returnRoutePoints = [from, to];
+      });
     }
   }
 
@@ -604,6 +648,34 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
                                     _buildStat(Icons.logout, _formatTime(_endTime), 'End'),
                                   ],
                                 ),
+                                if (_returnDistanceKm != null || _returnRouteKm != null) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDC2626).withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.home_rounded, size: 16, color: Color(0xFFDC2626)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Return: ${(_returnRouteKm ?? _returnDistanceKm)?.toStringAsFixed(1) ?? '--'} km',
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                                        ),
+                                        if (_lastJobLocation?['ticketNumber'] != null) ...[
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'from #${_lastJobLocation!['ticketNumber']}',
+                                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 if (_totalPoints > 0 || _trips.length > 1) ...[
                                   const SizedBox(height: 8),
                                   Text(
@@ -650,6 +722,17 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
         pattern: isSnapped ? const StrokePattern.solid() : const StrokePattern.dotted(),
       ));
     }
+    // Return route polyline (dashed red)
+    if (_returnRoutePoints.length >= 2) {
+      polylines.add(Polyline(
+        points: _returnRoutePoints,
+        strokeWidth: 4,
+        color: const Color(0xFFDC2626),
+        borderStrokeWidth: 1,
+        borderColor: Colors.white,
+        pattern: const StrokePattern.dotted(spacingFactor: 2.5),
+      ));
+    }
     return polylines;
   }
 
@@ -671,6 +754,35 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
           child: Icon(Icons.location_on, color: trip.color.withAlpha(200), size: 28),
         ));
       }
+    }
+    // Home marker
+    if (_homeLocation != null) {
+      final hLat = (_homeLocation!['latitude'] as num).toDouble();
+      final hLng = (_homeLocation!['longitude'] as num).toDouble();
+      markers.add(Marker(
+        point: LatLng(hLat, hLng),
+        width: 40,
+        height: 40,
+        child: const Tooltip(
+          message: 'Registered Home',
+          child: Icon(Icons.home_rounded, color: Color(0xFFDC2626), size: 32),
+        ),
+      ));
+    }
+    // Last completed job marker
+    if (_lastJobLocation != null) {
+      final jLat = (_lastJobLocation!['latitude'] as num).toDouble();
+      final jLng = (_lastJobLocation!['longitude'] as num).toDouble();
+      final ticket = _lastJobLocation!['ticketNumber'];
+      markers.add(Marker(
+        point: LatLng(jLat, jLng),
+        width: 40,
+        height: 40,
+        child: Tooltip(
+          message: 'Last Job${ticket != null ? ' #$ticket' : ''}',
+          child: const Icon(Icons.work_rounded, color: Color(0xFFDC2626), size: 28),
+        ),
+      ));
     }
     // Stationary stop markers
     for (final stop in _stops) {

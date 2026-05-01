@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../bloc/auth_bloc.dart';
-import 'otp_verification_page.dart';
 import 'register_page.dart';
 import 'admin_login_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,7 +25,6 @@ class _LoginPageState extends State<LoginPage>
 
   final List<String> _volumeSequence = [];
   final List<String> _secretSequence = ['down', 'up', 'down', 'down'];
-  bool _usePassword = false;
   bool _obscurePassword = true;
 
   late AnimationController _fadeController;
@@ -124,9 +123,26 @@ class _LoginPageState extends State<LoginPage>
     final lower = message.toLowerCase();
 
     // Wrong password / invalid credentials
-    if (lower.contains('invalid password') ||
-        lower.contains('invalid credentials')) {
+    if (lower.contains('invalid password')) {
       return 'Wrong password. Please try again.';
+    }
+    if (lower.contains('invalid credentials')) {
+      return 'Invalid phone number or password.';
+    }
+
+    // User not found
+    if (lower.contains('user not found') || lower.contains('not found')) {
+      return 'No account found with this phone number. Please register first.';
+    }
+
+    // Password not set
+    if (lower.contains('password not set')) {
+      return 'Password not set for this account. Please use OTP login.';
+    }
+
+    // Invalid or expired OTP
+    if (lower.contains('invalid') && lower.contains('otp')) {
+      return 'Invalid or expired OTP. Please try again.';
     }
 
     // No internet / network errors
@@ -134,7 +150,7 @@ class _LoginPageState extends State<LoginPage>
         lower.contains('socketexception') ||
         lower.contains('connection refused') ||
         lower.contains('network error')) {
-      return 'No internet connection. Please check your network and try again.';
+      return 'No internet connection. Please check your network.';
     }
 
     // Timeout
@@ -149,14 +165,12 @@ class _LoginPageState extends State<LoginPage>
       return 'Server is not responding. Please try again later.';
     }
 
-    // Catch-all for raw technical errors
+    // Catch-all for raw technical errors only
     if (lower.contains('dioexception') ||
         lower.contains('handshakeexception') ||
         lower.contains('errno') ||
         lower.contains('type \'') ||
-        lower.contains('unexpected character') ||
-        lower.contains('serverexception') ||
-        lower.contains('networkexception')) {
+        lower.contains('unexpected character')) {
       return 'Something went wrong. Please try again later.';
     }
 
@@ -251,18 +265,12 @@ class _LoginPageState extends State<LoginPage>
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
-      if (_usePassword) {
-        context.read<AuthBloc>().add(
-              LoginEvent(
-                phoneNumber: _phoneController.text.trim(),
-                password: _passwordController.text,
-              ),
-            );
-      } else {
-        context.read<AuthBloc>().add(
-              SendOtpEvent(phoneNumber: _phoneController.text.trim()),
-            );
-      }
+      context.read<AuthBloc>().add(
+            LoginEvent(
+              phoneNumber: '+91${_phoneController.text.trim()}',
+              password: _passwordController.text,
+            ),
+          );
     }
   }
 
@@ -285,17 +293,7 @@ class _LoginPageState extends State<LoginPage>
         },
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is OtpSent) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => OtpVerificationPage(
-                    phoneNumber: state.phoneNumber,
-                    userId: state.userId,
-                  ),
-                ),
-              );
-            } else if (state is AuthAuthenticated) {
+            if (state is AuthAuthenticated) {
               Navigator.pushReplacementNamed(context, '/home');
             } else if (state is AuthError) {
               _showErrorDialog(state.message);
@@ -415,128 +413,91 @@ class _LoginPageState extends State<LoginPage>
                                     controller: _phoneController,
                                     focusNode: _phoneFocus,
                                     label: 'Phone Number',
-                                    hint: '+91 9876543210',
+                                    hint: '9876543210',
                                     icon: Icons.phone_rounded,
-                                    keyboardType: TextInputType.phone,
+                                    keyboardType: TextInputType.number,
                                     validator: Validators.validatePhone,
                                     enabled: !isLoading,
-                                    textInputAction: _usePassword
-                                        ? TextInputAction.next
-                                        : TextInputAction.done,
+                                    textInputAction: TextInputAction.next,
+                                    prefixText: '+91 ',
+                                    maxLength: 10,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
                                     onSubmitted: (_) {
-                                      if (_usePassword) {
-                                        _passwordFocus.requestFocus();
-                                      } else {
-                                        _handleLogin();
-                                      }
+                                      _passwordFocus.requestFocus();
                                     },
                                   ),
 
                                   const SizedBox(height: 16),
 
-                                  // Password toggle
-                                  GestureDetector(
-                                    onTap: isLoading
-                                        ? null
-                                        : () {
-                                            setState(() {
-                                              _usePassword = !_usePassword;
-                                            });
-                                          },
-                                    child: Row(
-                                      children: [
-                                        AnimatedContainer(
-                                          duration:
-                                              const Duration(milliseconds: 200),
-                                          width: 22,
-                                          height: 22,
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            color: _usePassword
-                                                ? AppColors.primary
-                                                : Colors.transparent,
-                                            border: Border.all(
-                                              color: _usePassword
-                                                  ? AppColors.primary
-                                                  : Colors.grey[350]!,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: _usePassword
-                                              ? const Icon(Icons.check,
-                                                  size: 14,
-                                                  color: Colors.white)
-                                              : null,
+                                  // Password field
+                                  _buildInputField(
+                                    controller: _passwordController,
+                                    focusNode: _passwordFocus,
+                                    label: 'Password',
+                                    hint: 'Enter your password',
+                                    icon: Icons.lock_rounded,
+                                    obscureText: _obscurePassword,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        color: Colors.grey[400],
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscurePassword =
+                                              !_obscurePassword;
+                                        });
+                                      },
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Password is required';
+                                      }
+                                      return null;
+                                    },
+                                    enabled: !isLoading,
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) => _handleLogin(),
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  // Forgot Password link
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: GestureDetector(
+                                      onTap: isLoading
+                                          ? null
+                                          : () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const ForgotPasswordPage(),
+                                                ),
+                                              );
+                                            },
+                                      child: Text(
+                                        'Forgot Password?',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: const Color(0xFF2563EB),
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          'Login with password',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[600],
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
 
-                                  // Password field (animated)
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                    child: _usePassword
-                                        ? Padding(
-                                            padding:
-                                                const EdgeInsets.only(top: 16),
-                                            child: _buildInputField(
-                                              controller: _passwordController,
-                                              focusNode: _passwordFocus,
-                                              label: 'Password',
-                                              hint: 'Enter your password',
-                                              icon: Icons.lock_rounded,
-                                              obscureText: _obscurePassword,
-                                              suffixIcon: IconButton(
-                                                icon: Icon(
-                                                  _obscurePassword
-                                                      ? Icons
-                                                          .visibility_outlined
-                                                      : Icons
-                                                          .visibility_off_outlined,
-                                                  color: Colors.grey[400],
-                                                  size: 20,
-                                                ),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _obscurePassword =
-                                                        !_obscurePassword;
-                                                  });
-                                                },
-                                              ),
-                                              validator: (value) {
-                                                if (_usePassword &&
-                                                    (value == null ||
-                                                        value.isEmpty)) {
-                                                  return 'Password is required';
-                                                }
-                                                return null;
-                                              },
-                                              enabled: !isLoading,
-                                              textInputAction:
-                                                  TextInputAction.done,
-                                              onSubmitted: (_) =>
-                                                  _handleLogin(),
-                                            ),
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-
-                                  const SizedBox(height: 28),
+                                  const SizedBox(height: 24),
 
                                   // Login Button
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
+                                  SizedBox(
                                     height: 54,
                                     child: ElevatedButton(
                                       onPressed: isLoading ? null : _handleLogin,
@@ -565,22 +526,18 @@ class _LoginPageState extends State<LoginPage>
                                                         Color>(Colors.white),
                                               ),
                                             )
-                                          : Row(
+                                          : const Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
                                               children: [
                                                 Icon(
-                                                  _usePassword
-                                                      ? Icons.login_rounded
-                                                      : Icons.sms_rounded,
+                                                  Icons.login_rounded,
                                                   size: 20,
                                                 ),
-                                                const SizedBox(width: 10),
+                                                SizedBox(width: 10),
                                                 Text(
-                                                  _usePassword
-                                                      ? 'Sign In'
-                                                      : 'Send OTP',
-                                                  style: const TextStyle(
+                                                  'Sign In',
+                                                  style: TextStyle(
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.w600,
                                                     letterSpacing: 0.3,
@@ -685,6 +642,9 @@ class _LoginPageState extends State<LoginPage>
     bool enabled = true,
     TextInputAction? textInputAction,
     void Function(String)? onSubmitted,
+    String? prefixText,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
@@ -695,6 +655,8 @@ class _LoginPageState extends State<LoginPage>
       enabled: enabled,
       textInputAction: textInputAction,
       onFieldSubmitted: onSubmitted,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
       decoration: InputDecoration(
         labelText: label,
@@ -702,7 +664,9 @@ class _LoginPageState extends State<LoginPage>
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
         labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
         prefixIcon: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+        prefixText: prefixText,
         suffixIcon: suffixIcon,
+        counterText: '',
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
         contentPadding:

@@ -26,6 +26,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AddRoleEvent>(_onAddRole);
     on<LogoutEvent>(_onLogout);
     on<ChangePasswordEvent>(_onChangePassword);
+    on<DeleteAccountEvent>(_onDeleteAccount);
   }
   
   Future<void> _onCheckAuthStatus(
@@ -239,6 +240,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
   
+  Future<void> _onDeleteAccount(
+    DeleteAccountEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    final locationService = sl<LocationTrackingService>();
+    locationService.stopTracking();
+
+    final result = await authRepository.deleteAccount();
+
+    await result.fold(
+      (failure) async => emit(AuthError(message: failure.message)),
+      (_) async {
+        emit(AccountDeleted());
+      },
+    );
+  }
+
   Future<void> _onLogout(
     LogoutEvent event,
     Emitter<AuthState> emit,

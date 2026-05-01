@@ -13,6 +13,7 @@ import 'field_technicians_page.dart';
 import 'installers_page.dart';
 import 'live_tracking_overview_page.dart';
 import 'field_staff_sales_page.dart';
+import 'technician_rankings_page.dart';
 import 'warranty_approvals_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
@@ -429,6 +430,20 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
         ),
         const SizedBox(height: 16),
         _buildActionCard(
+          'Technician Rankings',
+          'Performance leaderboard',
+          Icons.emoji_events_rounded,
+          const Color(0xFFF59E0B),
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TechnicianRankingsPage()),
+            );
+          },
+          6,
+        ),
+        const SizedBox(height: 16),
+        _buildActionCard(
           'Live Tracking',
           'View all staff on map',
           Icons.map_rounded,
@@ -439,7 +454,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
               MaterialPageRoute(builder: (_) => const LiveTrackingOverviewPage()),
             );
           },
-          6,
+          7,
         ),
       ],
     );

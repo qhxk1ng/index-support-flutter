@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../../core/config/app_config.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
 import '../bloc/sales_personnel_bloc.dart';
 import '../bloc/sales_personnel_event.dart';
@@ -324,24 +325,155 @@ class _ExpensesList extends StatelessWidget {
   }
 
   Widget _buildExpenseCard(SalesExpense expense) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))]),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-          child: Icon(_getIcon(expense.expenseType), color: const Color(0xFFDC2626), size: 24)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(expense.expenseType.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 4),
-          if (expense.description != null && expense.description!.isNotEmpty)
-            Text(expense.description!, style: TextStyle(color: Colors.grey[600], fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text('${expense.expenseDate.day}/${expense.expenseDate.month}/${expense.expenseDate.year}', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-        ])),
-        Text('₹${expense.amount?.toStringAsFixed(0) ?? '0'}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-      ]),
+    return Builder(
+      builder: (context) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(_getIcon(expense.expenseType), color: const Color(0xFFDC2626), size: 24)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(expense.expenseType.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  if (expense.description != null && expense.description!.isNotEmpty)
+                    Text(expense.description!, style: TextStyle(color: Colors.grey[600], fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('${expense.expenseDate.day}/${expense.expenseDate.month}/${expense.expenseDate.year}', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                ])),
+                Text('₹${expense.amount?.toStringAsFixed(0) ?? '0'}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+              ]),
+              if (expense.receiptImages.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 56,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: expense.receiptImages.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (ctx, i) {
+                      final url = _normalizeUrl(expense.receiptImages[i]);
+                      return GestureDetector(
+                        onTap: () => _showReceiptViewer(ctx, expense.receiptImages.map(_normalizeUrl).toList(), i),
+                        child: Container(
+                          width: 56, height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.3)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(7),
+                            child: Image.network(url, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(Icons.receipt_long, color: Color(0xFFDC2626), size: 24),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _normalizeUrl(String url) {
+    if (url.startsWith('http://')) return url.replaceFirst('http://', 'https://');
+    if (url.startsWith('https://')) return url;
+    return '${AppConfig.baseUrl}$url';
+  }
+
+  static void _showReceiptViewer(BuildContext context, List<String> urls, int initialIndex) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => _ReceiptViewerPage(urls: urls, initialIndex: initialIndex),
+    ));
+  }
+}
+
+class _ReceiptViewerPage extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _ReceiptViewerPage({required this.urls, required this.initialIndex});
+
+  @override
+  State<_ReceiptViewerPage> createState() => _ReceiptViewerPageState();
+}
+
+class _ReceiptViewerPageState extends State<_ReceiptViewerPage> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Receipt ${_currentIndex + 1} of ${widget.urls.length}',
+          style: const TextStyle(fontSize: 16),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.urls.length,
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        itemBuilder: (_, i) {
+          return InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.network(
+                widget.urls[i],
+                fit: BoxFit.contain,
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                          : null,
+                      color: const Color(0xFFDC2626),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) => const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -208,6 +208,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
             _currentPasswordController.clear();
             _newPasswordController.clear();
             _confirmPasswordController.clear();
+          } else if (state is AccountDeleted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
           } else if (state is AuthError) {
             _showErrorDialog(state.message);
           }
@@ -239,6 +241,28 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                 ),
                 const SizedBox(height: 16),
                 _buildPasswordCard(),
+
+                const SizedBox(height: 28),
+
+                // Delete Account Section (non-admin only)
+                Builder(builder: (context) {
+                  final authState = context.watch<AuthBloc>().state;
+                  final isAdmin = authState is AuthAuthenticated &&
+                      authState.user.activeRole == 'ADMIN';
+                  if (isAdmin) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(
+                        icon: Icons.delete_forever_rounded,
+                        title: 'Delete Account',
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDeleteAccountCard(),
+                    ],
+                  );
+                }),
 
                 const SizedBox(height: 40),
               ],
@@ -503,6 +527,106 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Permanently delete your account',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This action is irreversible. All your data, including profile, complaints, and location history will be permanently removed.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: _confirmDeleteAccount,
+              icon: const Icon(Icons.delete_forever_rounded, size: 20),
+              label: const Text(
+                'Delete My Account',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Delete Account?', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you sure you want to proceed?',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<AuthBloc>().add(DeleteAccountEvent());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

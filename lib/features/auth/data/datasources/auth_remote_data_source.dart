@@ -61,6 +61,8 @@ abstract class AuthRemoteDataSource {
     required String currentPassword,
     required String newPassword,
   });
+
+  Future<void> deleteAccount();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -240,5 +242,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'newPassword': newPassword,
       },
     );
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await apiClient.delete(ApiEndpoints.deleteAccount);
   }
 }

@@ -17,6 +17,7 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputAction? textInputAction;
   final void Function(String)? onFieldSubmitted;
+  final String? prefixText;
   
   const CustomTextField({
     super.key,
@@ -35,6 +36,7 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatters,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.prefixText,
   });
   
   @override
@@ -55,6 +57,7 @@ class CustomTextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         prefixIcon: prefixIcon,
+        prefixText: prefixText,
         suffixIcon: suffixIcon,
         counterText: '',
       ),

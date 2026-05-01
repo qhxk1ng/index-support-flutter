@@ -10,6 +10,8 @@ import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:io';
+import 'work_management_page.dart';
+import 'route_plan_page.dart';
 
 class FieldPersonnelDashboardPage extends StatefulWidget {
   const FieldPersonnelDashboardPage({super.key});
@@ -862,7 +864,26 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => WorkManagementPage(ticket: ticket),
+                      ));
+                      _loadStats();
+                    },
+                    icon: const Icon(Icons.engineering, size: 18),
+                    label: const Text('Work'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showCompleteTaskDialog(ticket),
@@ -948,6 +969,10 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
                       _buildSidebarItem(icon: Icons.dashboard, title: 'Dashboard', onTap: () => _toggleSidebar()),
+                      _buildSidebarItem(icon: Icons.route, title: 'Route Plan', onTap: () {
+                        _toggleSidebar();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RoutePlanPage()));
+                      }),
                       _buildSidebarItem(icon: Icons.settings, title: 'Settings', onTap: () => _toggleSidebar()),
                     ],
                   ),
