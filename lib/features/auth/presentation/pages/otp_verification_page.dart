@@ -5,6 +5,8 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
+import '../widgets/auth_background.dart';
+import '../widgets/auth_animated_container.dart';
 import 'login_page.dart';
 import 'set_password_page.dart';
 
@@ -73,11 +75,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify OTP'),
-        centerTitle: true,
-      ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is OtpVerified) {
@@ -140,93 +140,146 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         builder: (context, state) {
           final isLoading = state is AuthLoading;
           
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 40),
-                    
-                    const Icon(
-                      Icons.message_outlined,
-                      size: 80,
-                      color: AppColors.primary,
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    const Text(
-                      'Verify Your Number',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    Text(
-                      'Enter the 6-digit code sent to\n${widget.phoneNumber}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const SizedBox(height: 40),
-                    
-                    CustomTextField(
-                      controller: _otpController,
-                      label: 'OTP Code',
-                      hint: '123456',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: const Icon(Icons.pin_outlined),
-                      validator: Validators.validateOTP,
-                      enabled: !isLoading,
-                      maxLength: 6,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleVerifyOtp(),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    CustomButton(
-                      text: 'Verify OTP',
-                      onPressed: _handleVerifyOtp,
-                      isLoading: isLoading,
-                      icon: Icons.check_circle_outline,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Didn't receive the code? ",
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                        TextButton(
-                          onPressed: isLoading ? null : _handleResendOtp,
-                          child: const Text('Resend'),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+          return AuthBackground(
+            child: AuthAnimatedContainer(
+              logo: _buildLogoSection(isDark),
+              form: _buildFormSection(isDark, isLoading),
+              bottomContent: _buildBottomLinks(isLoading),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLogoSection(bool isDark) {
+    return Column(
+      children: [
+        Container(
+          width: 90,
+          height: 90,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2563EB).withOpacity(0.3),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.message_rounded,
+            size: 44,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          'Verify Your Number',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Enter the 6-digit code sent to\n${widget.phoneNumber}',
+          style: TextStyle(
+            fontSize: 15,
+            color: isDark ? Colors.white54 : Colors.grey[500],
+            fontWeight: FontWeight.w400,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormSection(bool isDark, bool isLoading) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.white,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CustomTextField(
+              controller: _otpController,
+              label: 'OTP Code',
+              hint: '123456',
+              keyboardType: TextInputType.number,
+              prefixIcon: const Icon(Icons.pin_outlined),
+              validator: Validators.validateOTP,
+              enabled: !isLoading,
+              maxLength: 6,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _handleVerifyOtp(),
+            ),
+            const SizedBox(height: 24),
+            CustomButton(
+              text: 'Verify OTP',
+              onPressed: _handleVerifyOtp,
+              isLoading: isLoading,
+              icon: Icons.check_circle_outline_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomLinks(bool isLoading) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Didn't receive the code? ",
+              style: TextStyle(
+                color: isDark ? Colors.white54 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            GestureDetector(
+              onTap: isLoading ? null : _handleResendOtp,
+              child: const Text(
+                'Resend',
+                style: TextStyle(
+                  color: Color(0xFF2563EB),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 }

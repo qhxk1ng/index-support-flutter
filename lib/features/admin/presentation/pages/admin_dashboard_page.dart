@@ -45,16 +45,16 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 0.2),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
     _animationController.forward();
   }
 
@@ -72,15 +72,19 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                colors: isDark
+                    ? [const Color(0xFF7F1D1D), const Color(0xFF450A0A)]
+                    : [const Color(0xFFDC2626), const Color(0xFF991B1B)],
               ),
             ),
             child: SafeArea(
@@ -89,44 +93,58 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                   _buildAppBar(),
                   Expanded(
                     child: Container(
-                      margin: const EdgeInsets.only(top: 20),
+                      margin: const EdgeInsets.only(top: 16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).scaffoldBackgroundColor,
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                         borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
+                          topLeft: Radius.circular(32),
+                          topRight: Radius.circular(32),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, -5),
+                          )
+                        ],
                       ),
                       child: BlocBuilder<AdminBloc, AdminState>(
                         builder: (context, state) {
                           if (state is AdminLoading) {
-                            return const Center(child: CircularProgressIndicator());
+                            return const Center(child: CircularProgressIndicator(color: Color(0xFFDC2626)));
                           }
-                          
+
                           if (state is AdminError) {
                             return Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
+                                  const Icon(Icons.error_outline_rounded, size: 64, color: Color(0xFFDC2626)),
                                   const SizedBox(height: 16),
-                                  Text(state.message),
-                                  const SizedBox(height: 16),
+                                  Text(
+                                    state.message,
+                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                  ),
+                                  const SizedBox(height: 24),
                                   ElevatedButton(
                                     onPressed: () {
                                       context.read<AdminBloc>().add(GetDashboardStatsEvent());
                                     },
-                                    child: const Text('Retry'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFDC2626),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
                                   ),
                                 ],
                               ),
                             );
                           }
-                          
+
                           if (state is DashboardStatsLoaded) {
-                            return _buildDashboardContent(state.stats);
+                            return _buildDashboardContent(state.stats, isDark);
                           }
-                          
+
                           return const SizedBox();
                         },
                       ),
@@ -136,7 +154,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
               ),
             ),
           ),
-          _buildSidebar(),
+          _buildSidebar(isDark),
         ],
       ),
     );
@@ -144,21 +162,27 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-            onPressed: _toggleSidebar,
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+              onPressed: _toggleSidebar,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Admin Dashboard',
+                'Admin Center',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                   letterSpacing: -0.5,
@@ -168,7 +192,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
               Text(
                 'Manage your system',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   color: Colors.white70,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
@@ -183,39 +207,41 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
     );
   }
 
-  Widget _buildDashboardContent(DashboardStatsEntity stats) {
+  Widget _buildDashboardContent(DashboardStatsEntity stats, bool isDark) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Overview',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1F2937),
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 20),
-              _buildStatsGrid(stats),
-              const SizedBox(height: 32),
-              const Text(
+              _buildStatsGrid(stats, isDark),
+              const SizedBox(height: 36),
+              Text(
                 'Quick Actions',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1F2937),
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 20),
-              _buildQuickActions(stats),
+              _buildQuickActions(stats, isDark),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -223,48 +249,24 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
     );
   }
 
-  Widget _buildStatsGrid(DashboardStatsEntity stats) {
+  Widget _buildStatsGrid(DashboardStatsEntity stats, bool isDark) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
-      childAspectRatio: 1.5,
+      childAspectRatio: 1.35,
       children: [
-        _buildStatCard(
-          'Total Customers',
-          stats.totalCustomers.toString(),
-          Icons.people_alt_rounded,
-          const Color(0xFFDC2626),
-          0,
-        ),
-        _buildStatCard(
-          'Total Complaints',
-          stats.totalComplaints.toString(),
-          Icons.report_gmailerrorred_rounded,
-          const Color(0xFFEF4444),
-          1,
-        ),
-        _buildStatCard(
-          'Completed',
-          stats.completedComplaints.toString(),
-          Icons.check_circle_rounded,
-          const Color(0xFF10B981),
-          2,
-        ),
-        _buildStatCard(
-          'Warranties',
-          stats.totalWarranties.toString(),
-          Icons.verified_rounded,
-          const Color(0xFFF59E0B),
-          3,
-        ),
+        _buildStatCard('Total Customers', stats.totalCustomers.toString(), Icons.people_alt_rounded, const Color(0xFFDC2626), 0, isDark),
+        _buildStatCard('Total Complaints', stats.totalComplaints.toString(), Icons.report_gmailerrorred_rounded, const Color(0xFFEF4444), 1, isDark),
+        _buildStatCard('Completed', stats.completedComplaints.toString(), Icons.check_circle_rounded, const Color(0xFF10B981), 2, isDark),
+        _buildStatCard('Warranties', stats.totalWarranties.toString(), Icons.verified_rounded, const Color(0xFFF59E0B), 3, isDark),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, int index) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, int index, bool isDark) {
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 600 + (index * 100)),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -273,13 +275,17 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
         return Transform.scale(
           scale: animValue,
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white,
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white10 : Colors.white,
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.15),
+                  color: color.withOpacity(isDark ? 0.1 : 0.15),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -289,50 +295,55 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color, color.withOpacity(0.7)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [color, color.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 18),
-                ),
-                const SizedBox(height: 4),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      letterSpacing: -1,
+                      child: Icon(icon, color: Colors.white, size: 20),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    letterSpacing: 0.2,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          letterSpacing: -1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white54 : Colors.grey[500],
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -342,132 +353,45 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
     );
   }
 
-  Widget _buildQuickActions(DashboardStatsEntity stats) {
+  Widget _buildQuickActions(DashboardStatsEntity stats, bool isDark) {
     return Column(
       children: [
-        _buildActionCard(
-          'Warranty Approvals',
-          'Review pending warranties',
-          Icons.pending_actions_rounded,
-          const Color(0xFFDC2626),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WarrantyApprovalsPage()),
-            );
-          },
-          0,
-        ),
+        _buildActionCard('Warranty Approvals', 'Review pending warranties', Icons.pending_actions_rounded, const Color(0xFFDC2626), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyApprovalsPage()));
+        }, 0, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Active Tickets',
-          '${stats.totalComplaints - stats.completedComplaints} active',
-          Icons.confirmation_number_rounded,
-          const Color(0xFFEF4444),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ActiveTicketsPage()),
-            );
-          },
-          1,
-        ),
+        _buildActionCard('Active Tickets', '${stats.totalComplaints - stats.completedComplaints} active', Icons.confirmation_number_rounded, const Color(0xFFEF4444), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ActiveTicketsPage()));
+        }, 1, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Find Users',
-          'Search and manage customers',
-          Icons.person_search_rounded,
-          const Color(0xFFF59E0B),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FindUsersPage()),
-            );
-          },
-          2,
-        ),
+        _buildActionCard('Find Users', 'Search and manage customers', Icons.person_search_rounded, const Color(0xFFF59E0B), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FindUsersPage()));
+        }, 2, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Field Technicians',
-          '${stats.totalFieldPersonnel} personnel',
-          Icons.engineering_rounded,
-          const Color(0xFF10B981),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FieldTechniciansPage()),
-            );
-          },
-          3,
-        ),
+        _buildActionCard('Field Technicians', '${stats.totalFieldPersonnel} personnel', Icons.engineering_rounded, const Color(0xFF10B981), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FieldTechniciansPage()));
+        }, 3, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Installers',
-          '${stats.totalInstallers} installers',
-          Icons.build_circle_rounded,
-          const Color(0xFF3B82F6),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const InstallersPage()),
-            );
-          },
-          4,
-        ),
+        _buildActionCard('Installers', '${stats.totalInstallers} installers', Icons.build_circle_rounded, const Color(0xFF3B82F6), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const InstallersPage()));
+        }, 4, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Field Staff & Sales',
-          'Field personnel & sales team',
-          Icons.people_alt_rounded,
-          const Color(0xFF0EA5E9),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FieldStaffSalesPage()),
-            );
-          },
-          5,
-        ),
+        _buildActionCard('Field Staff & Sales', 'Field personnel & sales team', Icons.people_alt_rounded, const Color(0xFF0EA5E9), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FieldStaffSalesPage()));
+        }, 5, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Technician Rankings',
-          'Performance leaderboard',
-          Icons.emoji_events_rounded,
-          const Color(0xFFF59E0B),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TechnicianRankingsPage()),
-            );
-          },
-          6,
-        ),
+        _buildActionCard('Technician Rankings', 'Performance leaderboard', Icons.emoji_events_rounded, const Color(0xFFF59E0B), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const TechnicianRankingsPage()));
+        }, 6, isDark),
         const SizedBox(height: 16),
-        _buildActionCard(
-          'Live Tracking',
-          'View all staff on map',
-          Icons.map_rounded,
-          const Color(0xFF6366F1),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LiveTrackingOverviewPage()),
-            );
-          },
-          7,
-        ),
+        _buildActionCard('Live Tracking', 'View all staff on map', Icons.map_rounded, const Color(0xFF6366F1), () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveTrackingOverviewPage()));
+        }, 7, isDark),
       ],
     );
   }
 
-  Widget _buildActionCard(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-    int index,
-  ) {
+  Widget _buildActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap, int index, bool isDark) {
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 400 + (index * 100)),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -485,13 +409,17 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
+                    color: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : Colors.white,
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+                        color: color.withOpacity(isDark ? 0.05 : 0.1),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
@@ -507,14 +435,10 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
-                            BoxShadow(
-                              color: color.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
+                            BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
                           ],
                         ),
-                        child: Icon(icon, color: Colors.white, size: 28),
+                        child: Icon(icon, color: Colors.white, size: 24),
                       ),
                       const SizedBox(width: 18),
                       Expanded(
@@ -526,7 +450,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                                color: isDark ? Colors.white : const Color(0xFF1E293B),
                                 letterSpacing: -0.3,
                               ),
                             ),
@@ -536,7 +460,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                color: isDark ? Colors.white54 : Colors.grey[500],
                                 letterSpacing: 0.1,
                               ),
                             ),
@@ -545,10 +469,7 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
                       ),
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
+                        decoration: BoxDecoration(color: color.withOpacity(isDark ? 0.2 : 0.1), shape: BoxShape.circle),
                         child: Icon(Icons.arrow_forward_rounded, size: 20, color: color),
                       ),
                     ],
@@ -562,145 +483,140 @@ class _AdminDashboardViewState extends State<_AdminDashboardView> with TickerPro
     );
   }
 
-  Widget _buildSidebar() {
+  Widget _buildSidebar(bool isDark) {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      left: _isSidebarExpanded ? 0 : -280,
+      left: _isSidebarExpanded ? 0 : -300,
       top: 0,
       bottom: 0,
-      width: 280,
-      child: GestureDetector(
-        onTap: () {},
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1F2937), Color(0xFF111827)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(4, 0),
+      width: 300,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [const Color(0xFF0F172A), const Color(0xFF0B0F19)]
+                      : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 30,
+                    offset: const Offset(4, 0),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Color(0xFF6366F1),
-                        child: Icon(Icons.admin_panel_settings, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Admin',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
                               ),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            Text(
-                              'System Manager',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
-                              ),
+                            child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Admin',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                                ),
+                                Text(
+                                  'System Manager',
+                                  style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                            onPressed: _toggleSidebar,
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: _toggleSidebar,
+                    ),
+                    Divider(color: Colors.white.withOpacity(0.1), thickness: 1, height: 1),
+                    Expanded(
+                      child: ListView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        children: [
+                          _buildSidebarItem(icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: _toggleSidebar),
+                          _buildSidebarItem(icon: Icons.settings_rounded, title: 'Settings', onTap: _toggleSidebar),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                Divider(color: Colors.white.withOpacity(0.1), thickness: 1),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    children: [
-                      _buildSidebarItem(
-                        icon: Icons.dashboard,
-                        title: 'Dashboard',
+                    ),
+                    Divider(color: Colors.white.withOpacity(0.1), thickness: 1, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildSidebarItem(
+                        icon: Icons.logout_rounded,
+                        title: 'Sign Out',
+                        isDestructive: true,
                         onTap: () {
                           _toggleSidebar();
+                          context.read<AuthBloc>().add(LogoutEvent());
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                         },
                       ),
-                      _buildSidebarItem(
-                        icon: Icons.settings,
-                        title: 'Settings',
-                        onTap: () {
-                          _toggleSidebar();
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Divider(color: Colors.white.withOpacity(0.1), thickness: 1),
-                _buildSidebarItem(
-                  icon: Icons.logout_rounded,
-                  title: 'Sign Out',
-                  isDestructive: true,
-                  onTap: () {
-                    _toggleSidebar();
-                    context.read<AuthBloc>().add(LogoutEvent());
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_isSidebarExpanded)
+            Positioned(
+              left: 300,
+              top: 0,
+              bottom: 0,
+              right: -MediaQuery.of(context).size.width,
+              child: GestureDetector(
+                onTap: _toggleSidebar,
+                child: Container(color: Colors.black.withOpacity(0.5)),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildSidebarItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
+  Widget _buildSidebarItem({required IconData icon, required String title, required VoidCallback onTap, bool isDestructive = false}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Row(
             children: [
-              Icon(
-                icon,
-                color: isDestructive ? Colors.red[300] : Colors.white70,
-                size: 22,
-              ),
+              Icon(icon, color: isDestructive ? const Color(0xFFEF4444) : Colors.white70, size: 24),
               const SizedBox(width: 16),
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 15,
-                  color: isDestructive ? Colors.red[300] : Colors.white,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDestructive ? const Color(0xFFEF4444) : Colors.white,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],

@@ -11,7 +11,7 @@ class CustomButton extends StatelessWidget {
   final IconData? icon;
   final double? width;
   final double height;
-  
+
   const CustomButton({
     super.key,
     required this.text,
@@ -22,65 +22,90 @@ class CustomButton extends StatelessWidget {
     this.textColor,
     this.icon,
     this.width,
-    this.height = 56,
+    this.height = 54,
   });
-  
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final effectiveBgColor = backgroundColor ?? theme.primaryColor;
+    final effectiveTextColor = textColor ?? Colors.white;
+
     if (isOutlined) {
       return SizedBox(
-        width: width,
+        width: width ?? double.infinity,
         height: height,
         child: OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
-            side: BorderSide(
-              color: backgroundColor ?? AppColors.primary,
-              width: 2,
+            side: BorderSide(color: effectiveBgColor, width: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
-          child: _buildChild(),
+          child: _buildChild(effectiveBgColor),
         ),
       );
     }
-    
+
     return SizedBox(
-      width: width,
+      width: width ?? double.infinity,
       height: height,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppColors.primary,
-          foregroundColor: textColor ?? Colors.white,
+          backgroundColor: effectiveBgColor,
+          foregroundColor: effectiveTextColor,
+          disabledBackgroundColor: effectiveBgColor.withOpacity(0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
-        child: _buildChild(),
+        child: _buildChild(effectiveTextColor),
       ),
     );
   }
-  
-  Widget _buildChild() {
+
+  Widget _buildChild(Color color) {
     if (isLoading) {
-      return const SizedBox(
-        height: 20,
-        width: 20,
+      return SizedBox(
+        height: 22,
+        width: 22,
         child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          strokeWidth: 2.5,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
         ),
       );
     }
-    
+
     if (icon != null) {
       return Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 20),
-          const SizedBox(width: 8),
-          Text(text),
+          const SizedBox(width: 10),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
         ],
       );
     }
-    
-    return Text(text);
+
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
+      ),
+    );
   }
 }

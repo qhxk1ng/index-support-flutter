@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/services/background_location_service.dart';
 import '../../../../core/widgets/sidebar_wrapper.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
@@ -180,7 +182,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
           secondaryColor: const Color(0xFF047857),
           menuItems: _buildMenuItems(context),
           child: Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: SafeArea(
               child: Column(
                 children: [
@@ -264,17 +266,21 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Widget _buildTopBar(UserEntity? user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF059669), Color(0xFF10B981)],
+        gradient: LinearGradient(
+          colors: isDark 
+              ? [const Color(0xFF064E3B), const Color(0xFF022C22)]
+              : [const Color(0xFF059669), const Color(0xFF10B981)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF059669).withValues(alpha: 0.3),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -291,7 +297,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
@@ -305,21 +311,23 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sales Dashboard',
+                  'Sales Center',
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
                     letterSpacing: -0.5,
                   ),
                 ),
                 Text(
                   'Track your performance',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                  style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
           ),
+          const ThemeToggleButton(),
+          const SizedBox(width: 12),
           // Refresh Button
           Material(
             color: Colors.transparent,
@@ -331,7 +339,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 22),
@@ -344,28 +352,30 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Widget _buildErrorState(String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const Icon(Icons.error_outline_rounded, size: 64, color: Color(0xFFEF4444)),
           const SizedBox(height: 16),
-          Text('Error loading dashboard', style: Theme.of(context).textTheme.titleLarge),
+          Text('Error loading dashboard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
               context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
             },
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF059669),
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -374,21 +384,26 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Widget _buildWelcomeSection(UserEntity? user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF059669), Color(0xFF34D399)],
+        gradient: LinearGradient(
+          colors: isDark 
+              ? [const Color(0xFF064E3B).withOpacity(0.8), const Color(0xFF022C22).withOpacity(0.8)]
+              : [const Color(0xFF059669), const Color(0xFF34D399)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        border: isDark ? Border.all(color: Colors.white10, width: 1) : null,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF059669).withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF059669).withOpacity(isDark ? 0.1 : 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -400,8 +415,8 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(Icons.trending_up_rounded, color: Colors.white, size: 32),
               ),
@@ -412,12 +427,12 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
                   children: [
                     Text(
                       'Welcome, ${user?.name?.split(' ').first ?? 'Sales Rep'}!',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'Track activities, leads & expenses',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                      style: TextStyle(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -434,46 +449,29 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.35,
       children: [
-        _buildStatCard(
-          'Activities',
-          stats.totalActivities.toString(),
-          Icons.location_on_rounded,
-          const Color(0xFF059669),
-        ),
-        _buildStatCard(
-          'Sales Leads',
-          stats.totalLeads.toString(),
-          Icons.people_rounded,
-          const Color(0xFF2563EB),
-        ),
-        _buildStatCard(
-          'Expenses',
-          '₹${stats.totalExpenseAmount.toStringAsFixed(0)}',
-          Icons.account_balance_wallet_rounded,
-          const Color(0xFFDC2626),
-        ),
-        _buildStatCard(
-          'Time Spent',
-          '${(stats.totalTimeSpent / 60).toStringAsFixed(0)} hrs',
-          Icons.timer_rounded,
-          const Color(0xFFEA580C),
-        ),
+        _buildStatCard('Activities', stats.totalActivities.toString(), Icons.location_on_rounded, const Color(0xFF059669)),
+        _buildStatCard('Sales Leads', stats.totalLeads.toString(), Icons.people_rounded, const Color(0xFF2563EB)),
+        _buildStatCard('Expenses', '₹${stats.totalExpenseAmount.toStringAsFixed(0)}', Icons.account_balance_wallet_rounded, const Color(0xFFDC2626)),
+        _buildStatCard('Time Spent', '${(stats.totalTimeSpent / 60).toStringAsFixed(0)} hrs', Icons.timer_rounded, const Color(0xFFEA580C)),
       ],
     );
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: isDark ? Border.all(color: Colors.white10, width: 1) : null,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.05), blurRadius: 20, offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -486,21 +484,29 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : Colors.grey[600], fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, color: color, size: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [color, color.withOpacity(0.7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
               ),
             ],
           ),
-          Text(
-            value,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: isDark ? Colors.white : color, letterSpacing: -0.5),
+            ),
           ),
         ],
       ),
@@ -508,11 +514,13 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Quick Actions', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
+        Text('Quick Actions', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: -0.5)),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -521,46 +529,26 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
                 Icons.add_location_alt_rounded,
                 const Color(0xFF059669),
                 () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<SalesPersonnelBloc>(),
-                        child: const LogActivityPage(),
-                      ),
-                    ),
-                  );
-                  if (mounted) {
-                    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
-                  }
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: context.read<SalesPersonnelBloc>(), child: const LogActivityPage())));
+                  if (mounted) context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildActionButton(
                 'Add Lead',
                 Icons.person_add_rounded,
                 const Color(0xFF2563EB),
                 () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<SalesPersonnelBloc>(),
-                        child: const SalesLeadsPage(),
-                      ),
-                    ),
-                  );
-                  if (mounted) {
-                    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
-                  }
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: context.read<SalesPersonnelBloc>(), child: const SalesLeadsPage())));
+                  if (mounted) context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
                 },
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -569,40 +557,20 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
                 Icons.receipt_long_rounded,
                 const Color(0xFFDC2626),
                 () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<SalesPersonnelBloc>(),
-                        child: const ExpensesPage(),
-                      ),
-                    ),
-                  );
-                  if (mounted) {
-                    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
-                  }
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: context.read<SalesPersonnelBloc>(), child: const ExpensesPage())));
+                  if (mounted) context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildActionButton(
                 'View Activities',
                 Icons.list_alt_rounded,
                 const Color(0xFFEA580C),
                 () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<SalesPersonnelBloc>(),
-                        child: const ActivitiesListPage(),
-                      ),
-                    ),
-                  );
-                  if (mounted) {
-                    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
-                  }
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: context.read<SalesPersonnelBloc>(), child: const ActivitiesListPage())));
+                  if (mounted) context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
                 },
               ),
             ),
@@ -613,23 +581,25 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.2)),
+            color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(isDark ? 0.3 : 0.2), width: 1.5),
           ),
           child: Column(
             children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 8),
-              Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+              Icon(icon, color: isDark ? Colors.white : color, size: 32),
+              const SizedBox(height: 12),
+              Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : color)),
             ],
           ),
         ),

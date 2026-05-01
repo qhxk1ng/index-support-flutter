@@ -189,13 +189,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
   }
 
   Widget _buildTopBar(UserEntity? user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -212,12 +214,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                  color: isDark ? const Color(0xFF1E3A8A).withOpacity(0.3) : const Color(0xFF1E3A8A).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.menu_rounded,
-                  color: Color(0xFF1E3A8A),
+                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E3A8A),
                   size: 24,
                 ),
               ),
@@ -226,12 +228,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
           const SizedBox(width: 16),
           
           // Logo/Title
-          const Text(
+          Text(
             'Dashboard',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E3A8A),
+              color: isDark ? Colors.white : const Color(0xFF1E3A8A),
             ),
           ),
           
@@ -250,16 +252,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.grey[100],
+                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.notifications_outlined,
-                      color: Color(0xFF1E3A8A),
+                      color: isDark ? Colors.white70 : const Color(0xFF1E3A8A),
                       size: 24,
                     ),
                     Positioned(
@@ -285,6 +285,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
   }
 
   Widget _buildWelcomeSection(UserEntity? user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -296,17 +298,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               'Welcome,',
               style: TextStyle(
                 fontSize: 16,
-                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                color: isDark ? Colors.white70 : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               user?.name ?? 'Guest',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF1E3A8A),
                 letterSpacing: -0.5,
               ),
             ),
@@ -314,8 +316,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
             Text(
               'How can we help you today?',
               style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                fontSize: 15,
+                color: isDark ? Colors.white54 : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
               ),
             ),
           ],

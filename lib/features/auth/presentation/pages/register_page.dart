@@ -7,6 +7,8 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
+import '../widgets/auth_background.dart';
+import '../widgets/auth_animated_container.dart';
 import 'otp_verification_page.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -145,6 +147,14 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
   
+  String _normalizePhoneNumber(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('91') && digits.length >= 12) {
+      return '+$digits';
+    }
+    return '+91$digits';
+  }
+
   void _handleRegister() {
     if (_formKey.currentState!.validate()) {
       if (_latitude == null || _longitude == null) {
@@ -159,7 +169,7 @@ class _RegisterPageState extends State<RegisterPage> {
       
       context.read<AuthBloc>().add(
         RegisterEvent(
-          phoneNumber: '+91${_phoneController.text.trim()}',
+          phoneNumber: _normalizePhoneNumber(_phoneController.text.trim()),
           name: _nameController.text.trim(),
           email: '',
           role: _selectedRole,
@@ -173,11 +183,9 @@ class _RegisterPageState extends State<RegisterPage> {
   
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-        centerTitle: true,
-      ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is RegistrationSuccess) {
@@ -192,7 +200,7 @@ class _RegisterPageState extends State<RegisterPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => OtpVerificationPage(
-                  phoneNumber: '+91${_phoneController.text.trim()}',
+                  phoneNumber: _normalizePhoneNumber(_phoneController.text.trim()),
                   userId: state.userId,
                   password: _passwordController.text,
                 ),
@@ -217,345 +225,370 @@ class _RegisterPageState extends State<RegisterPage> {
         builder: (context, state) {
           final isLoading = state is AuthLoading;
           
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 20),
-                    
-                    const Icon(
-                      Icons.person_add,
-                      size: 64,
-                      color: AppColors.primary,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    const Text(
-                      'Join Index Care',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    const Text(
-                      'Create your account to get started',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    CustomTextField(
-                      controller: _nameController,
-                      label: 'Full Name',
-                      hint: 'John Doe',
-                      keyboardType: TextInputType.name,
-                      prefixIcon: const Icon(Icons.person_outline),
-                      validator: Validators.validateName,
-                      enabled: !isLoading,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _phoneController,
-                      label: 'Phone Number',
-                      hint: '9876543210',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: const Icon(Icons.phone),
-                      prefixText: '+91 ',
-                      validator: Validators.validatePhone,
-                      enabled: !isLoading,
-                      maxLength: 10,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(10),
-                      ],
-                      textInputAction: TextInputAction.next,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    const SizedBox(height: 24),
-                    
-                    const Text(
-                      'Select Your Role',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    ..._roles.map((role) {
-                      final isSelected = _selectedRole == role['value'];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedRole = role['value']!;
-                                  });
-                                },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary.withOpacity(0.1)
-                                  : AppColors.surface,
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                                width: isSelected ? 2 : 1,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  role['icon']!,
-                                  style: const TextStyle(fontSize: 24),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    role['label']!,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                if (isSelected)
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: AppColors.primary,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    CustomTextField(
-                      controller: _addressController,
-                      label: 'Address',
-                      hint: '123 Main St, New York, NY',
-                      keyboardType: TextInputType.streetAddress,
-                      prefixIcon: const Icon(Icons.location_on_outlined),
-                      validator: Validators.validateAddress,
-                      enabled: !isLoading,
-                      maxLines: 2,
-                      textInputAction: TextInputAction.done,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _latitude != null && _longitude != null
-                            ? AppColors.successLight
-                            : AppColors.warningLight,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _latitude != null && _longitude != null
-                              ? AppColors.success
-                              : AppColors.warning,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _latitude != null && _longitude != null
-                                    ? Icons.check_circle
-                                    : Icons.location_off,
-                                color: _latitude != null && _longitude != null
-                                    ? AppColors.success
-                                    : AppColors.warning,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _latitude != null && _longitude != null
-                                      ? 'Location Captured'
-                                      : 'Location Required',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _latitude != null && _longitude != null
-                                        ? AppColors.success
-                                        : AppColors.warning,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_latitude != null && _longitude != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Lat: ${_latitude!.toStringAsFixed(6)}, Lng: ${_longitude!.toStringAsFixed(6)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomButton(
-                      text: _isLoadingLocation
-                          ? 'Getting Location...'
-                          : 'Capture Location',
-                      onPressed: _isLoadingLocation || isLoading
-                          ? null
-                          : _getCurrentLocation,
-                      isLoading: _isLoadingLocation,
-                      icon: Icons.my_location,
-                      isOutlined: true,
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      hint: 'Min 6 characters',
-                      obscureText: _obscurePassword,
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password is required';
-                        }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                      enabled: !isLoading,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    CustomTextField(
-                      controller: _confirmPasswordController,
-                      label: 'Confirm Password',
-                      hint: 'Re-enter your password',
-                      obscureText: _obscureConfirmPassword,
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please confirm your password';
-                        }
-                        if (value != _passwordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                      enabled: !isLoading,
-                      textInputAction: TextInputAction.done,
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    CustomButton(
-                      text: 'Register',
-                      onPressed: _handleRegister,
-                      isLoading: isLoading,
-                      icon: Icons.person_add,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Already have an account? ',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                        TextButton(
-                          onPressed: isLoading
-                              ? null
-                              : () {
-                                  Navigator.pop(context);
-                                },
-                          child: const Text('Login'),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+          return AuthBackground(
+            child: AuthAnimatedContainer(
+              logo: _buildLogoSection(isDark),
+              form: _buildFormSection(isDark, isLoading),
+              bottomContent: _buildBottomLinks(isLoading),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLogoSection(bool isDark) {
+    return Column(
+      children: [
+        Container(
+          width: 90,
+          height: 90,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2563EB).withOpacity(0.3),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.person_add_rounded,
+            size: 44,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          'Join Index Care',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Create your account to get started',
+          style: TextStyle(
+            fontSize: 15,
+            color: isDark ? Colors.white54 : Colors.grey[500],
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormSection(bool isDark, bool isLoading) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.white,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CustomTextField(
+              controller: _nameController,
+              label: 'Full Name',
+              hint: 'John Doe',
+              keyboardType: TextInputType.name,
+              prefixIcon: const Icon(Icons.person_outline_rounded),
+              validator: Validators.validateName,
+              enabled: !isLoading,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _phoneController,
+              label: 'Phone Number',
+              hint: '9876543210',
+              keyboardType: TextInputType.number,
+              prefixIcon: const Icon(Icons.phone_rounded),
+              prefixText: '+91 ',
+              validator: Validators.validatePhone,
+              enabled: !isLoading,
+              maxLength: 10,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Select Your Role',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
+                ),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _roles.length,
+                separatorBuilder: (_, __) => Divider(
+                  color: isDark ? const Color(0xFF334155) : Colors.grey[200],
+                  height: 1,
+                ),
+                itemBuilder: (context, index) {
+                  final role = _roles[index];
+                  final isSelected = _selectedRole == role['value'];
+                  
+                  return RadioListTile<String>(
+                    title: Row(
+                      children: [
+                        Text(role['icon']!, style: const TextStyle(fontSize: 20)),
+                        const SizedBox(width: 12),
+                        Text(
+                          role['label']!,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    value: role['value']!,
+                    groupValue: _selectedRole,
+                    activeColor: const Color(0xFF2563EB),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    onChanged: isLoading
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedRole = value!;
+                            });
+                          },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E3A8A).withOpacity(0.2) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFBFDBFE),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Location Setup',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_latitude != null && _longitude != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF064E3B).withOpacity(0.3) : const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Location captured successfully',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF065F46),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoadingLocation || isLoading ? null : _getCurrentLocation,
+                        icon: _isLoadingLocation
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.my_location_rounded, size: 18),
+                        label: Text(_isLoadingLocation ? 'Getting Location...' : 'Capture Current Location'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            CustomTextField(
+              controller: _addressController,
+              label: 'Full Address',
+              hint: 'Enter your complete address',
+              maxLines: 3,
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(bottom: 40),
+                child: Icon(Icons.home_work_outlined),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Address is required';
+                }
+                return null;
+              },
+              enabled: !isLoading,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _passwordController,
+              label: 'Password',
+              hint: 'Create a strong password',
+              obscureText: _obscurePassword,
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: isDark ? Colors.white38 : Colors.grey[400],
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+              validator: Validators.validatePassword,
+              enabled: !isLoading,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _confirmPasswordController,
+              label: 'Confirm Password',
+              hint: 'Re-enter your password',
+              obscureText: _obscureConfirmPassword,
+              prefixIcon: const Icon(Icons.lock_reset_outlined),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: isDark ? Colors.white38 : Colors.grey[400],
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                  });
+                },
+              ),
+              validator: (value) {
+                if (value != _passwordController.text) {
+                  return 'Passwords do not match';
+                }
+                return null;
+              },
+              enabled: !isLoading,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _handleRegister(),
+            ),
+            const SizedBox(height: 32),
+            CustomButton(
+              text: 'Create Account',
+              onPressed: _handleRegister,
+              isLoading: isLoading,
+              icon: Icons.person_add_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomLinks(bool isLoading) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Already have an account? ',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            GestureDetector(
+              onTap: isLoading ? null : () => Navigator.pop(context),
+              child: const Text(
+                'Log In',
+                style: TextStyle(
+                  color: Color(0xFF2563EB),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 }

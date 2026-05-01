@@ -4,6 +4,31 @@ import '../../error/exceptions.dart';
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    // Check if there's response data even for unknown errors (some APIs return 404 as unknown type)
+    if (err.type == DioExceptionType.unknown && err.response != null) {
+      final statusCode = err.response?.statusCode;
+      final message = _extractErrorMessage(err.response?.data);
+      
+      if (statusCode != null) {
+        switch (statusCode) {
+          case 400:
+            throw ValidationException(message ?? 'Invalid request');
+          case 401:
+            throw UnauthorizedException(message ?? 'Unauthorized access');
+          case 403:
+            throw UnauthorizedException(message ?? 'Access forbidden');
+          case 404:
+            throw ServerException(message ?? 'Resource not found', statusCode);
+          case 500:
+          case 502:
+          case 503:
+            throw ServerException(message ?? 'Server error occurred', statusCode);
+          default:
+            throw ServerException(message ?? 'An error occurred', statusCode);
+        }
+      }
+    }
+    
     switch (err.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
@@ -35,7 +60,7 @@ class ErrorInterceptor extends Interceptor {
         throw NetworkException('Request cancelled');
       
       case DioExceptionType.unknown:
-        if (err.error.toString().contains('SocketException')) {
+        if (err.error?.toString().contains('SocketException') == true) {
           throw NetworkException('No internet connection');
         }
         throw NetworkException('An unexpected error occurred');

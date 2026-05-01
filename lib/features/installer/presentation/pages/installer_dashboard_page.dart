@@ -4,6 +4,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/services/background_location_service.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import 'dart:async';
 
 class InstallerDashboardPage extends StatefulWidget {
@@ -38,14 +39,18 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
     try {
       final apiClient = sl<ApiClient>();
       final response = await apiClient.get('/api/installer/issues');
-      
-      setState(() {
-        _issues = List<Map<String, dynamic>>.from(response.data['data'] ?? []);
-        _isLoadingIssues = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _issues = List<Map<String, dynamic>>.from(response.data['data'] ?? []);
+          _isLoadingIssues = false;
+        });
+      }
     } catch (e) {
-      print('Error loading issues: $e');
-      setState(() => _isLoadingIssues = false);
+      debugPrint('Error loading issues: $e');
+      if (mounted) {
+        setState(() => _isLoadingIssues = false);
+      }
     }
   }
 
@@ -57,6 +62,8 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         String installerName = 'Installer';
@@ -68,35 +75,44 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
           body: Stack(
             children: [
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                    colors: isDark
+                        ? [const Color(0xFF4C1D95), const Color(0xFF2E1065)]
+                        : [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)],
                   ),
                 ),
                 child: SafeArea(
                   child: Column(
                     children: [
-                      _buildAppBar(),
+                      _buildAppBar(isDark),
                       Expanded(
                         child: Container(
-                          margin: const EdgeInsets.only(top: 20),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(30),
-                              topRight: Radius.circular(30),
+                          margin: const EdgeInsets.only(top: 16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(32),
+                              topRight: Radius.circular(32),
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, -5),
+                              )
+                            ],
                           ),
-                          child: _buildDashboardContent(installerName),
+                          child: _buildDashboardContent(installerName, isDark),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              _buildSidebar(installerName),
+              _buildSidebar(installerName, isDark),
             ],
           ),
         );
@@ -104,14 +120,20 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
     );
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-            onPressed: _toggleSidebar,
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+              onPressed: _toggleSidebar,
+            ),
           ),
           const SizedBox(width: 12),
           const Column(
@@ -121,8 +143,10 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
                 'Installer',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFamily: 'SF Pro Display',
                 ),
               ),
               Text(
@@ -130,261 +154,142 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white70,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
+          const Spacer(),
+          const ThemeToggleButton(),
         ],
       ),
     );
   }
 
-  Widget _buildDashboardContent(String installerName) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome, $installerName!',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage your installations',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildQuickActions(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Column(
-      children: [
-        _buildActionCard(
-          'View Issues',
-          'See all reported issues from your installations',
-          Icons.report_problem,
-          const Color(0xFFEF4444),
-          () => _showIssues(),
-        ),
-        const SizedBox(height: 12),
-        _buildActionCard(
-          'Installation History',
-          'View your completed installations',
-          Icons.history,
-          const Color(0xFF3B82F6),
-          () {},
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showIssues() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Reported Issues',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_issues.length} Issues',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFEF4444),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _isLoadingIssues
-                    ? const Center(child: CircularProgressIndicator())
-                    : _issues.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[300]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No issues reported',
-                                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: controller,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: _issues.length,
-                            itemBuilder: (context, index) {
-                              final issue = _issues[index];
-                              return _buildIssueCard(issue);
-                            },
-                          ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIssueCard(Map<String, dynamic> issue) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+  Widget _buildDashboardContent(String installerName, bool isDark) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadIssues();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.report_problem, color: Color(0xFFEF4444), size: 20),
+            Text(
+              'Welcome,',
+              style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey[600], fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              installerName,
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: -0.5),
+            ),
+            const SizedBox(height: 24),
+            Text('Installation Tasks', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1F2937), letterSpacing: -0.5)),
+            const SizedBox(height: 16),
+
+            _isLoadingIssues
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6)))
+                : _issues.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.check_circle_outline_rounded, size: 64, color: isDark ? Colors.white38 : Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text('No pending installation tasks', style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey[600], fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: _issues.map((i) => _buildIssueCard(i, isDark)).toList(),
+                      ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIssueCard(Map<String, dynamic> issue, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.white, width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.05), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Task #${issue['ticketNumber'] ?? issue['id']?.substring(0, 8) ?? 'Unknown'}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFF8B5CF6), letterSpacing: -0.2),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
+                child: const Text(
+                  'PENDING',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF8B5CF6)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.location_on_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey[500]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  issue['address'] ?? 'No address provided',
+                  style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.description_rounded, size: 16, color: isDark ? Colors.white38 : Colors.grey[500]),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         issue['customerName'] ?? 'Customer',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        issue['issueDescription'] ?? 'No description',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                        maxLines: 2,
+                        issue['description'] ?? issue['issueDescription'] ?? 'No description',
+                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.grey[700]),
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -392,36 +297,54 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
                 ),
               ],
             ),
-            if (issue['images'] != null && (issue['images'] as List).isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 80,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: (issue['images'] as List).length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 80,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(issue['images'][index]),
-                          fit: BoxFit.cover,
-                        ),
+          ),
+          if (issue['images'] != null && (issue['images'] as List).isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 80,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: (issue['images'] as List).length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    width: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: NetworkImage(issue['images'][index]),
+                        fit: BoxFit.cover,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-            ],
+            ),
           ],
-        ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Installation completion tapped')));
+              },
+              icon: const Icon(Icons.check_circle_rounded, size: 18),
+              label: const Text('Mark Completed'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSidebar(String installerName) {
+  Widget _buildSidebar(String installerName, bool isDark) {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,

@@ -1,10 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../../core/services/background_location_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/services/background_location_service.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
@@ -526,6 +531,8 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         String technicianName = 'Technician';
@@ -537,11 +544,13 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
           body: Stack(
             children: [
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    colors: isDark
+                        ? [const Color(0xFF064E3B), const Color(0xFF022C22)]
+                        : [const Color(0xFF10B981), const Color(0xFF059669)],
                   ),
                 ),
                 child: SafeArea(
@@ -550,13 +559,20 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                       _buildAppBar(),
                       Expanded(
                         child: Container(
-                          margin: const EdgeInsets.only(top: 20),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(30),
-                              topRight: Radius.circular(30),
+                          margin: const EdgeInsets.only(top: 16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(32),
+                              topRight: Radius.circular(32),
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, -5),
+                              )
+                            ],
                           ),
                           child: _buildDashboardContent(technicianName),
                         ),
@@ -565,7 +581,7 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                   ),
                 ),
               ),
-              _buildSidebar(technicianName),
+              _buildSidebar(technicianName, isDark),
             ],
           ),
         );
@@ -575,23 +591,31 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-            onPressed: _toggleSidebar,
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+              onPressed: _toggleSidebar,
+            ),
           ),
           const SizedBox(width: 12),
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Field Technician',
+                'Field Center',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFamily: 'SF Pro Display',
                 ),
               ),
               Text(
@@ -599,11 +623,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white70,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
           const Spacer(),
+          const ThemeToggleButton(),
+          const SizedBox(width: 8),
           if (_pendingJobs.isNotEmpty)
             GestureDetector(
               onTap: () => _showJobAlertDialog(_pendingJobs.first),
@@ -625,32 +652,34 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                   ],
                 ),
               ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.location_on, size: 14, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text(
+                    'Tracking',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ],
+              ),
             ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.location_on, size: 14, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'Tracking',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildDashboardContent(String technicianName) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return RefreshIndicator(
       onRefresh: () async {
         await _loadStats();
@@ -658,31 +687,35 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Welcome, $technicianName!',
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+              'Welcome,',
+              style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey[600], fontWeight: FontWeight.w500),
             ),
-            const SizedBox(height: 8),
-            Text("Here's your work overview", style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            Text(
+              technicianName,
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: -0.5),
+            ),
             const SizedBox(height: 24),
-            // Pending job alerts banner
+            
             if (_pendingJobs.isNotEmpty) ...[
               _buildPendingJobsBanner(),
               const SizedBox(height: 24),
             ],
-            const Text('Overview', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+            
+            Text('Overview', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1F2937), letterSpacing: -0.5)),
             const SizedBox(height: 16),
-            _isLoadingStats ? const Center(child: CircularProgressIndicator()) : _buildOverviewCards(),
-            const SizedBox(height: 24),
-            // Assigned work section
+            _isLoadingStats ? const Center(child: CircularProgressIndicator(color: Color(0xFF10B981))) : _buildOverviewCards(isDark),
+            const SizedBox(height: 32),
+            
             if (_assignedTickets.isNotEmpty) ...[
-              const Text('Active Work', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+              Text('Active Work', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1F2937), letterSpacing: -0.5)),
               const SizedBox(height: 16),
-              ..._assignedTickets.map((t) => _buildAssignedTicketCard(t)),
+              ..._assignedTickets.map((t) => _buildAssignedTicketCard(t, isDark)),
             ],
           ],
         ),
@@ -692,70 +725,82 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
 
   Widget _buildPendingJobsBanner() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.notifications_active, color: Colors.white, size: 32),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${_pendingJobs.length} New Job${_pendingJobs.length > 1 ? 's' : ''} Available!',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                const Text('Tap to view and accept', style: TextStyle(fontSize: 12, color: Colors.white70)),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => _showJobAlertDialog(_pendingJobs.first),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFF59E0B)),
-            child: const Text('View'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOverviewCards() {
-    return Column(
-      children: [
-        _buildStatCard('Work Assigned', _workAssigned.toString(), Icons.assignment, const Color(0xFF3B82F6), 'Active tasks'),
-        const SizedBox(height: 12),
-        _buildStatCard('Completed This Month', _tasksCompletedThisMonth.toString(), Icons.check_circle, const Color(0xFF10B981), 'Successfully completed'),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
-    return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 32),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.notifications_active, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                Text('${_pendingJobs.length} New Job${_pendingJobs.length > 1 ? 's' : ''} Available!',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                const Text('Tap to view and accept', style: TextStyle(fontSize: 13, color: Colors.white70)),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _showJobAlertDialog(_pendingJobs.first),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFF59E0B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('View', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewCards(bool isDark) {
+    return Column(
+      children: [
+        _buildStatCard('Work Assigned', _workAssigned.toString(), Icons.assignment_rounded, const Color(0xFF3B82F6), 'Active tasks', isDark),
+        const SizedBox(height: 16),
+        _buildStatCard('Completed This Month', _tasksCompletedThisMonth.toString(), Icons.check_circle_rounded, const Color(0xFF10B981), 'Successfully completed', isDark),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.05), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+            ),
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 14, color: isDark ? Colors.white54 : Colors.grey[600], fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF1F2937), letterSpacing: -0.5)),
+                const SizedBox(height: 4),
+                Text(subtitle, style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey[500], fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -764,75 +809,113 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
     );
   }
 
-  Widget _buildAssignedTicketCard(Map<String, dynamic> ticket) {
+  Widget _buildAssignedTicketCard(Map<String, dynamic> ticket, bool isDark) {
     final status = ticket['status'] ?? 'ASSIGNED';
     final journeyStarted = status == 'IN_PROGRESS';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.white, width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.05), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xFF3B82F6).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.assignment, color: Color(0xFF3B82F6), size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(ticket['customerName'] ?? 'Customer', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(ticket['issueDescription'] ?? 'No description', style: TextStyle(fontSize: 13, color: Colors.grey[600]), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+              Text(
+                'Ticket #${ticket['ticketNumber'] ?? ''}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFF3B82F6), letterSpacing: -0.2),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: journeyStarted ? const Color(0xFFF59E0B).withOpacity(0.1) : const Color(0xFF3B82F6).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: journeyStarted ? const Color(0xFF8B5CF6).withOpacity(0.1) : const Color(0xFF3B82F6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  journeyStarted ? 'En Route' : 'Assigned',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: journeyStarted ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)),
+                  journeyStarted ? 'IN PROGRESS' : 'ASSIGNED',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: journeyStarted ? const Color(0xFF8B5CF6) : const Color(0xFF3B82F6),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(ticket['customerAddress'] ?? 'Address not available', style: TextStyle(fontSize: 12, color: Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
+              Icon(Icons.person_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey[500]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ticket['customerName'] ?? 'Customer',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.location_on_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey[500]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ticket['customerAddress'] ?? 'No address',
+                  style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.grey[600]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.description_rounded, size: 16, color: isDark ? Colors.white38 : Colors.grey[500]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ticket['description'] ?? 'No description provided.',
+                    style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.grey[700]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
               if (!journeyStarted)
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _startJourneyForTicket(ticket),
-                    icon: const Icon(Icons.navigation, size: 18),
+                    icon: const Icon(Icons.directions_car_rounded, size: 18),
                     label: const Text('Start Journey'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -854,11 +937,11 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                         });
                       }
                     },
-                    icon: const Icon(Icons.map, size: 18),
+                    icon: const Icon(Icons.map_rounded, size: 18),
                     label: const Text('Navigate'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF3B82F6),
-                      side: const BorderSide(color: Color(0xFF3B82F6)),
+                      side: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -873,13 +956,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                       ));
                       _loadStats();
                     },
-                    icon: const Icon(Icons.engineering, size: 18),
+                    icon: const Icon(Icons.engineering_rounded, size: 18),
                     label: const Text('Work'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -887,13 +971,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showCompleteTaskDialog(ticket),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Complete'),
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('Done'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8B5CF6),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -901,16 +986,16 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
             ],
           ),
           if (journeyStarted) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _endJourneyForTicket(ticket),
-                icon: const Icon(Icons.stop_circle, size: 18),
+                icon: const Icon(Icons.stop_circle_rounded, size: 18),
                 label: const Text('End Journey'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: const Color(0xFFEF4444),
+                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -922,77 +1007,104 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
     );
   }
 
-  Widget _buildSidebar(String technicianName) {
+  Widget _buildSidebar(String technicianName, bool isDark) {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      left: _isSidebarExpanded ? 0 : -280,
+      left: _isSidebarExpanded ? 0 : -300,
       top: 0,
       bottom: 0,
-      width: 280,
-      child: GestureDetector(
-        onTap: () {},
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1F2937), Color(0xFF111827)],
-            ),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(4, 0))],
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(radius: 24, backgroundColor: Color(0xFF10B981), child: Icon(Icons.engineering, color: Colors.white)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(technicianName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                            const Text('Field Technician', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                          ],
-                        ),
+      width: 300,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [const Color(0xFF0F172A), const Color(0xFF0B0F19)]
+                      : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
+                ),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 30, offset: const Offset(4, 0))],
+              ),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.engineering_rounded, color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(technicianName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5)),
+                                const Text('Field Technician', style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                          IconButton(icon: const Icon(Icons.close_rounded, color: Colors.white54), onPressed: _toggleSidebar),
+                        ],
                       ),
-                      IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: _toggleSidebar),
-                    ],
-                  ),
+                    ),
+                    Divider(color: Colors.white.withOpacity(0.1), thickness: 1, height: 1),
+                    Expanded(
+                      child: ListView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        children: [
+                          _buildSidebarItem(icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => _toggleSidebar()),
+                          _buildSidebarItem(icon: Icons.route_rounded, title: 'Route Plan', onTap: () {
+                            _toggleSidebar();
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const RoutePlanPage()));
+                          }),
+                          _buildSidebarItem(icon: Icons.settings_rounded, title: 'Settings', onTap: () => _toggleSidebar()),
+                        ],
+                      ),
+                    ),
+                    Divider(color: Colors.white.withOpacity(0.1), thickness: 1, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildSidebarItem(
+                        icon: Icons.logout_rounded,
+                        title: 'Sign Out',
+                        isDestructive: true,
+                        onTap: () {
+                          _toggleSidebar();
+                          context.read<AuthBloc>().add(LogoutEvent());
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                Divider(color: Colors.white.withOpacity(0.1), thickness: 1),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    children: [
-                      _buildSidebarItem(icon: Icons.dashboard, title: 'Dashboard', onTap: () => _toggleSidebar()),
-                      _buildSidebarItem(icon: Icons.route, title: 'Route Plan', onTap: () {
-                        _toggleSidebar();
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RoutePlanPage()));
-                      }),
-                      _buildSidebarItem(icon: Icons.settings, title: 'Settings', onTap: () => _toggleSidebar()),
-                    ],
-                  ),
-                ),
-                Divider(color: Colors.white.withOpacity(0.1), thickness: 1),
-                _buildSidebarItem(
-                  icon: Icons.logout_rounded,
-                  title: 'Sign Out',
-                  isDestructive: true,
-                  onTap: () {
-                    _toggleSidebar();
-                    context.read<AuthBloc>().add(LogoutEvent());
-                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_isSidebarExpanded)
+            Positioned(
+              left: 300,
+              top: 0,
+              bottom: 0,
+              right: -MediaQuery.of(context).size.width,
+              child: GestureDetector(
+                onTap: _toggleSidebar,
+                child: Container(color: Colors.black.withOpacity(0.5)),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1002,13 +1114,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Row(
             children: [
-              Icon(icon, color: isDestructive ? Colors.red[300] : Colors.white70, size: 22),
+              Icon(icon, color: isDestructive ? const Color(0xFFEF4444) : Colors.white70, size: 24),
               const SizedBox(width: 16),
-              Text(title, style: TextStyle(fontSize: 15, color: isDestructive ? Colors.red[300] : Colors.white, fontWeight: FontWeight.w500)),
+              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDestructive ? const Color(0xFFEF4444) : Colors.white, letterSpacing: 0.2)),
             ],
           ),
         ),
