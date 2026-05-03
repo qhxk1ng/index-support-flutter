@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -6,14 +7,25 @@ import '../constants/app_constants.dart';
 /// Service for interacting with a self-hosted Valhalla routing engine.
 class ValhallaService {
   static final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 15),
+    connectTimeout: const Duration(seconds: 6),
+    receiveTimeout: const Duration(seconds: 10),
   ));
 
+  // Limit concurrent requests so we don't overwhelm Valhalla.
+  static const int _maxConcurrency = 4;
+  // Overall budget for a single traceRoute() call.
+  static const Duration _overallTimeout = Duration(seconds: 45);
+
+  // In-memory cache: hash of input points → snapped result.
+  // Prevents re-snapping the same trace on widget rebuilds.
+  static final Map<int, List<LatLng>> _cache = <int, List<LatLng>>{};
+  static const int _cacheMaxEntries = 32;
+
   // ── Snap GPS trace to roads ─────────────────────────────────────
-  // Strategy: try trace_route (map matching) first; if it fails,
+  // Strategy: try trace_route (map matching) first; if a batch fails,
   // fall back to routing between consecutive GPS waypoints which
-  // always produces road-following paths.
+  // always produces road-following paths. All batches run in parallel
+  // with a bounded concurrency cap.
   static Future<List<LatLng>> traceRoute(
     List<LatLng> points, {
     List<DateTime>? timestamps,
@@ -21,232 +33,196 @@ class ValhallaService {
   }) async {
     if (points.length < 2) return [];
 
-    // Pre-filter: remove stationary / near-duplicate points (< 20m apart)
-    // Also filter corresponding timestamps/headings in sync
-    final filterResult = _filterNearDuplicatesWithMeta(points, 20.0, timestamps, headings);
+    // Pre-filter: remove stationary / near-duplicate points (< 25m apart)
+    // Slightly larger than before to trim low-signal GPS jitter faster.
+    final filterResult = _filterNearDuplicatesWithMeta(points, 25.0, timestamps, headings);
     final filtered = filterResult.points;
     if (filtered.length < 2) return points;
 
-    debugPrint('Valhalla: ${points.length} raw → ${filtered.length} filtered points');
-
-    // 1. Try trace_route (true map matching — best accuracy)
-    final traced = await _tryTraceRoute(filtered, filterResult.timestamps, filterResult.headings);
-    if (traced.length >= 2) {
-      debugPrint('Valhalla trace_route success: ${traced.length} snapped points');
-      return traced;
+    // Cache lookup
+    final cacheKey = _hashPoints(filtered);
+    final cached = _cache[cacheKey];
+    if (cached != null) {
+      debugPrint('Valhalla: cache hit (${cached.length} points)');
+      return cached;
     }
 
-    // 2. Fallback: route between GPS waypoints (always follows roads)
-    debugPrint('Valhalla trace_route failed, using route fallback');
-    final routed = await _routeAlongWaypoints(filtered);
-    debugPrint('Valhalla route fallback: ${routed.length} points');
-    return routed.length >= 2 ? routed : filtered;
+    debugPrint('Valhalla: ${points.length} raw → ${filtered.length} filtered points');
+
+    try {
+      final result = await _tryTraceRoute(
+        filtered,
+        filterResult.timestamps,
+        filterResult.headings,
+      ).timeout(_overallTimeout);
+
+      if (result.length >= 2) {
+        debugPrint('Valhalla snap done: ${result.length} points');
+        _cachePut(cacheKey, result);
+        return result;
+      }
+    } on TimeoutException {
+      debugPrint('Valhalla snap overall timeout — returning filtered GPS');
+    } catch (e) {
+      debugPrint('Valhalla snap error: $e');
+    }
+
+    // Last resort: raw (but filtered) GPS trace
+    return filtered;
   }
 
   // Try Valhalla trace_route with minimal request body.
-  // If a batch fails, falls back to route for just that segment.
+  // Batches run in parallel (bounded by _maxConcurrency). If a batch fails
+  // or produces too few points, that specific batch falls back to routing.
   static Future<List<LatLng>> _tryTraceRoute(
     List<LatLng> pts,
     List<DateTime>? timestamps,
     List<double?>? headings,
   ) async {
-    final allSnapped = <LatLng>[];
     const batchSize = 80;
 
+    // Build batch descriptors first (sequential index so we can stitch later).
+    final batches = <({int index, List<LatLng> pts, List<DateTime>? ts, List<double?>? hd})>[];
     for (int start = 0; start < pts.length - 1; start += batchSize - 1) {
       final end = (start + batchSize).clamp(0, pts.length);
       final batch = pts.sublist(start, end);
       if (batch.length < 2) break;
+      batches.add((
+        index: batches.length,
+        pts: batch,
+        ts: timestamps?.sublist(start, end),
+        hd: headings?.sublist(start, end),
+      ));
+    }
 
-      final batchTs = timestamps?.sublist(start, end);
-      final batchHd = headings?.sublist(start, end);
+    // Run all batches in parallel with a concurrency cap.
+    final results = List<List<LatLng>>.filled(batches.length, const <LatLng>[]);
+    await _runBounded<void>(
+      batches,
+      _maxConcurrency,
+      (b) async {
+        results[b.index] = await _snapSingleBatch(b.pts, b.ts, b.hd);
+      },
+    );
 
-      final shape = <Map<String, dynamic>>[];
-      for (int i = 0; i < batch.length; i++) {
-        final point = <String, dynamic>{
-          'lat': batch[i].latitude,
-          'lon': batch[i].longitude,
-        };
-        if (batchTs != null && i < batchTs.length) {
-          point['time'] = (batchTs[i].millisecondsSinceEpoch / 1000).round();
-        }
-        if (batchHd != null && i < batchHd.length && batchHd[i] != null && batchHd[i]! >= 0) {
-          point['heading'] = batchHd[i];
-          point['heading_tolerance'] = 45;
-        }
-        shape.add(point);
-      }
-
-      List<LatLng>? batchSnapped;
-      try {
-        final resp = await _dio.post(
-          '${AppConstants.valhallaBaseUrl}/trace_route',
-          data: <String, dynamic>{
-            'shape': shape,
-            'costing': 'auto',
-            'shape_match': 'map_snap',
-            'search_radius': 50,
-            'gps_accuracy': 20,
-          },
-          options: Options(
-            contentType: 'application/json',
-            validateStatus: (s) => s != null && s < 500,
-          ),
-        );
-
-        if (resp.statusCode == 200) {
-          final legs = resp.data['trip']?['legs'] as List?;
-          if (legs != null && legs.isNotEmpty) {
-            batchSnapped = <LatLng>[];
-            for (final leg in legs) {
-              final encoded = leg['shape'] as String?;
-              if (encoded == null || encoded.isEmpty) continue;
-              final decoded = decodePolyline6(encoded);
-              if (batchSnapped!.isNotEmpty && decoded.isNotEmpty) {
-                if (_samePoint(batchSnapped.last, decoded.first)) {
-                  decoded.removeAt(0);
-                }
-              }
-              batchSnapped.addAll(decoded);
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('trace_route batch error: $e');
-      }
-
-      // Validate: snapped result should have significantly more points than input
-      // (road-snapped routes add intermediate road geometry). If not, snap was poor.
-      final snapRatio = batchSnapped != null && batch.isNotEmpty
-          ? batchSnapped.length / batch.length
-          : 0.0;
-      if (batchSnapped != null && batchSnapped.length >= 2 && snapRatio > 1.5) {
-        if (allSnapped.isNotEmpty && _samePoint(allSnapped.last, batchSnapped.first)) {
-          batchSnapped.removeAt(0);
-        }
-        allSnapped.addAll(batchSnapped);
+    // Stitch sequentially, de-duplicating the join point between batches.
+    final merged = <LatLng>[];
+    for (final seg in results) {
+      if (seg.isEmpty) continue;
+      if (merged.isNotEmpty && _samePoint(merged.last, seg.first)) {
+        merged.addAll(seg.skip(1));
       } else {
-        // Fallback: route this segment via waypoints
-        debugPrint('trace_route batch ${start ~/ batchSize} ${batchSnapped != null ? "poor quality (ratio ${snapRatio.toStringAsFixed(1)})" : "failed"}, using route fallback');
-        final routed = await _routeAlongWaypoints(batch);
-        if (allSnapped.isNotEmpty && routed.isNotEmpty && _samePoint(allSnapped.last, routed.first)) {
-          routed.removeAt(0);
-        }
-        allSnapped.addAll(routed);
+        merged.addAll(seg);
       }
     }
-    return allSnapped;
+    return merged;
   }
 
-  // Route a single pair of points.
-  static Future<List<LatLng>?> _routePair(LatLng a, LatLng b) async {
+  // Snap one batch via trace_route. If it returns ANY usable result, use it.
+  // If it fails entirely, return raw GPS for that batch (no cascading retries).
+  // This eliminates the "snapping loop" caused by deep fallback chains.
+  static Future<List<LatLng>> _snapSingleBatch(
+    List<LatLng> batch,
+    List<DateTime>? batchTs,
+    List<double?>? batchHd,
+  ) async {
+    final shape = <Map<String, dynamic>>[];
+    for (int i = 0; i < batch.length; i++) {
+      final point = <String, dynamic>{
+        'lat': batch[i].latitude,
+        'lon': batch[i].longitude,
+      };
+      if (batchTs != null && i < batchTs.length) {
+        point['time'] = (batchTs[i].millisecondsSinceEpoch / 1000).round();
+      }
+      if (batchHd != null && i < batchHd.length && batchHd[i] != null && batchHd[i]! >= 0) {
+        point['heading'] = batchHd[i];
+        point['heading_tolerance'] = 45;
+      }
+      shape.add(point);
+    }
+
     try {
       final resp = await _dio.post(
-        '${AppConstants.valhallaBaseUrl}/route',
+        '${AppConstants.valhallaBaseUrl}/trace_route',
         data: <String, dynamic>{
-          'locations': [
-            {'lat': a.latitude, 'lon': a.longitude},
-            {'lat': b.latitude, 'lon': b.longitude},
-          ],
+          'shape': shape,
           'costing': 'auto',
+          'shape_match': 'map_snap',
+          'search_radius': 100, // wider radius = fewer failed matches
+          'gps_accuracy': 20,
         },
         options: Options(
           contentType: 'application/json',
           validateStatus: (s) => s != null && s < 500,
         ),
       );
+
       if (resp.statusCode == 200) {
         final legs = resp.data['trip']?['legs'] as List?;
         if (legs != null && legs.isNotEmpty) {
-          final seg = <LatLng>[];
+          final snapped = <LatLng>[];
           for (final leg in legs) {
             final encoded = leg['shape'] as String?;
             if (encoded == null || encoded.isEmpty) continue;
-            seg.addAll(decodePolyline6(encoded));
+            final decoded = decodePolyline6(encoded);
+            if (snapped.isNotEmpty && decoded.isNotEmpty && _samePoint(snapped.last, decoded.first)) {
+              decoded.removeAt(0);
+            }
+            snapped.addAll(decoded);
           }
-          if (seg.length >= 2) return seg;
+          // Trust any non-empty result from trace_route
+          if (snapped.length >= 2) return snapped;
         }
       }
-    } catch (_) {}
-    return null;
+    } catch (e) {
+      debugPrint('trace_route batch error: $e');
+    }
+
+    // No cascading fallback — just return raw GPS for this batch.
+    // The rest of the trace's batches still get snapped properly.
+    debugPrint('trace_route batch failed (${batch.length} pts), keeping raw GPS for this segment');
+    return List<LatLng>.from(batch);
   }
 
-  // Route between consecutive GPS waypoints using Valhalla route endpoint.
-  // Batches of 10. If a batch fails, retries as individual pairs.
-  static Future<List<LatLng>> _routeAlongWaypoints(List<LatLng> pts) async {
-    if (pts.length < 2) return [];
-
-    final allRouted = <LatLng>[];
-    const maxWaypoints = 10;
-
-    for (int start = 0; start < pts.length - 1; start += maxWaypoints - 1) {
-      final end = (start + maxWaypoints).clamp(0, pts.length);
-      final batch = pts.sublist(start, end);
-      if (batch.length < 2) break;
-
-      final locations = batch
-          .map((p) => <String, dynamic>{
-                'lat': p.latitude,
-                'lon': p.longitude,
-              })
-          .toList();
-
-      bool batchOk = false;
-      try {
-        final resp = await _dio.post(
-          '${AppConstants.valhallaBaseUrl}/route',
-          data: <String, dynamic>{
-            'locations': locations,
-            'costing': 'auto',
-          },
-          options: Options(
-            contentType: 'application/json',
-            validateStatus: (s) => s != null && s < 500,
-          ),
-        );
-
-        if (resp.statusCode == 200) {
-          final legs = resp.data['trip']?['legs'] as List?;
-          if (legs != null && legs.isNotEmpty) {
-            for (final leg in legs) {
-              final encoded = leg['shape'] as String?;
-              if (encoded == null || encoded.isEmpty) continue;
-              final decoded = decodePolyline6(encoded);
-              if (allRouted.isNotEmpty && decoded.isNotEmpty) {
-                if (_samePoint(allRouted.last, decoded.first)) {
-                  decoded.removeAt(0);
-                }
-              }
-              allRouted.addAll(decoded);
-            }
-            batchOk = true;
-          }
+  // Run [task] over [items] with at most [maxConcurrent] in-flight.
+  static Future<void> _runBounded<T>(
+    List<dynamic> items,
+    int maxConcurrent,
+    Future<void> Function(dynamic) task,
+  ) async {
+    if (items.isEmpty) return;
+    int next = 0;
+    final workers = <Future<void>>[];
+    for (int w = 0; w < maxConcurrent && w < items.length; w++) {
+      workers.add(() async {
+        while (true) {
+          final i = next++;
+          if (i >= items.length) return;
+          await task(items[i]);
         }
-      } catch (e) {
-        debugPrint('route batch error: $e');
-      }
-
-      // If batch failed, retry as individual pairs
-      if (!batchOk) {
-        debugPrint('Route batch failed (${batch.length} pts), retrying as pairs');
-        for (int i = 0; i < batch.length - 1; i++) {
-          final seg = await _routePair(batch[i], batch[i + 1]);
-          if (seg != null) {
-            if (allRouted.isNotEmpty && _samePoint(allRouted.last, seg.first)) {
-              seg.removeAt(0);
-            }
-            allRouted.addAll(seg);
-          } else {
-            // Last resort: raw line for this single gap
-            if (allRouted.isEmpty || !_samePoint(allRouted.last, batch[i])) {
-              allRouted.add(batch[i]);
-            }
-            allRouted.add(batch[i + 1]);
-          }
-        }
-      }
+      }());
     }
-    return allRouted;
+    await Future.wait(workers);
+  }
+
+  // Stable hash of a point list for caching.
+  static int _hashPoints(List<LatLng> pts) {
+    int h = pts.length;
+    for (final p in pts) {
+      final lat = (p.latitude * 1e5).round();
+      final lon = (p.longitude * 1e5).round();
+      h = 0x1fffffff & (h * 31 + lat);
+      h = 0x1fffffff & (h * 31 + lon);
+    }
+    return h;
+  }
+
+  static void _cachePut(int key, List<LatLng> value) {
+    if (_cache.length >= _cacheMaxEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[key] = value;
   }
 
   // Remove GPS points within [minMeters] of the previous kept point,
