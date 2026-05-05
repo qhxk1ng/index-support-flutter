@@ -17,6 +17,8 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<GetPendingWarrantiesEvent>(_onGetPendingWarranties);
     on<ApproveWarrantyEvent>(_onApproveWarranty);
     on<RejectWarrantyEvent>(_onRejectWarranty);
+    on<ReassignComplaintEvent>(_onReassignComplaint);
+    on<RejectComplaintEvent>(_onRejectComplaint);
   }
 
   Future<void> _onGetDashboardStats(
@@ -169,6 +171,40 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     result.fold(
       (failure) => emit(AdminError(message: failure.message)),
       (_) => emit(WarrantyRejected()),
+    );
+  }
+
+  Future<void> _onReassignComplaint(
+    ReassignComplaintEvent event,
+    Emitter<AdminState> emit,
+  ) async {
+    emit(AdminLoading());
+
+    final result = await adminRepository.reassignComplaint(
+      complaintId: event.complaintId,
+      technicianId: event.technicianId,
+    );
+
+    result.fold(
+      (failure) => emit(AdminError(message: failure.message)),
+      (_) => emit(ComplaintReassigned()),
+    );
+  }
+
+  Future<void> _onRejectComplaint(
+    RejectComplaintEvent event,
+    Emitter<AdminState> emit,
+  ) async {
+    emit(AdminLoading());
+
+    final result = await adminRepository.rejectComplaint(
+      complaintId: event.complaintId,
+      reason: event.reason,
+    );
+
+    result.fold(
+      (failure) => emit(AdminError(message: failure.message)),
+      (_) => emit(ComplaintRejected()),
     );
   }
 }

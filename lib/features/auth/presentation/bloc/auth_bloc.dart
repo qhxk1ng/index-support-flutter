@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../../../core/services/background_location_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../domain/entities/auth_response_entity.dart';
@@ -248,6 +249,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     final locationService = sl<LocationTrackingService>();
     locationService.stopTracking();
+    await BackgroundLocationService.stop();
 
     final result = await authRepository.deleteAccount();
 
@@ -268,6 +270,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Stop location tracking first to mark user offline
     final locationService = sl<LocationTrackingService>();
     locationService.stopTracking();
+    await BackgroundLocationService.stop();
 
     final result = await authRepository.logout();
 

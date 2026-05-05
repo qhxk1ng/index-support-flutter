@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/services/background_location_service.dart';
+import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,6 +18,7 @@ import 'dart:async';
 import 'dart:io';
 import 'work_management_page.dart';
 import 'route_plan_page.dart';
+import '../../../customer/presentation/pages/account_settings_page.dart';
 
 class FieldPersonnelDashboardPage extends StatefulWidget {
   const FieldPersonnelDashboardPage({super.key});
@@ -103,6 +105,23 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       }
     } catch (e) {
       debugPrint('Error polling pending jobs: $e');
+    }
+  }
+
+  Future<void> _maybeStopLocationTracking() async {
+    final hasActiveJourney = _assignedTickets.any((t) {
+      final status = t['status'] as String?;
+      final journeyStarted = t['journeyStarted'] as bool? ?? false;
+      return status == 'IN_PROGRESS' || journeyStarted;
+    });
+    if (!hasActiveJourney) {
+      try {
+        await BackgroundLocationService.stop();
+        sl<LocationTrackingService>().stopTracking();
+        debugPrint('Background location stopped: no active journeys');
+      } catch (e) {
+        debugPrint('Error stopping background location: $e');
+      }
     }
   }
 
@@ -353,7 +372,8 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
             const SnackBar(content: Text('Journey ended'), backgroundColor: Color(0xFF10B981)),
           );
         }
-        _loadStats();
+        await _loadStats();
+        await _maybeStopLocationTracking();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -497,7 +517,8 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Task completed!'), backgroundColor: Color(0xFF10B981)),
                     );
-                    _loadStats();
+                    await _loadStats();
+                    await _maybeStopLocationTracking();
                   }
                 } catch (e) {
                   setDialogState(() => isUploading = false);
@@ -1070,7 +1091,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
                             _toggleSidebar();
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const RoutePlanPage()));
                           }),
-                          _buildSidebarItem(icon: Icons.settings_rounded, title: 'Settings', onTap: () => _toggleSidebar()),
+                          _buildSidebarItem(
+                            icon: Icons.settings_rounded,
+                            title: 'Settings',
+                            onTap: () {
+                              _toggleSidebar();
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountSettingsPage()));
+                            },
+                          ),
                         ],
                       ),
                     ),

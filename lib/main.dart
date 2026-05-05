@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'core/di/injection_container.dart' as di;
 import 'core/services/background_location_service.dart';
+import 'core/services/connectivity_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/widgets/network_status_banner.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/permissions_onboarding_page.dart';
@@ -15,6 +17,7 @@ void main() async {
   
   await di.init();
   await BackgroundLocationService.initialize();
+  await ConnectivityService.instance.start();
   
   runApp(const MyApp());
 }
@@ -36,6 +39,8 @@ class MyApp extends StatelessWidget {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               themeMode: themeProvider.themeMode,
+              builder: (context, child) =>
+                  NetworkStatusBanner(child: child ?? const SizedBox.shrink()),
               routes: {
                 '/home': (context) => const HomePage(),
                 '/login': (context) => const LoginPage(),

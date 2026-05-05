@@ -97,3 +97,7 @@ class PendingWarrantiesLoaded extends AdminState {
 class WarrantyApproved extends AdminState {}
 
 class WarrantyRejected extends AdminState {}
+
+class ComplaintReassigned extends AdminState {}
+
+class ComplaintRejected extends AdminState {}

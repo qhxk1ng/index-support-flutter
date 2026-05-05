@@ -135,6 +135,8 @@ class AdminComplaintModel extends AdminComplaintEntity {
     required super.journeyStarted,
     required super.createdAt,
     required super.updatedAt,
+    super.completionImages,
+    super.completionRemarks,
   });
 
   factory AdminComplaintModel.fromJson(Map<String, dynamic> json) {
@@ -160,6 +162,8 @@ class AdminComplaintModel extends AdminComplaintEntity {
       journeyStarted: json['journeyStarted'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      completionImages: json['completionImages'] != null ? List<String>.from(json['completionImages'] as List) : null,
+      completionRemarks: json['completionRemarks'] as String?,
     );
   }
 }

@@ -27,4 +27,12 @@ abstract class AdminRepository {
     required String warrantyId,
     required String reason,
   });
+  Future<Either<Failure, void>> reassignComplaint({
+    required String complaintId,
+    required String technicianId,
+  });
+  Future<Either<Failure, void>> rejectComplaint({
+    required String complaintId,
+    String reason = '',
+  });
 }

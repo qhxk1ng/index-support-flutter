@@ -177,4 +177,44 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> reassignComplaint({
+    required String complaintId,
+    required String technicianId,
+  }) async {
+    try {
+      await remoteDataSource.reassignComplaint(
+        complaintId: complaintId,
+        technicianId: technicianId,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> rejectComplaint({
+    required String complaintId,
+    String reason = '',
+  }) async {
+    try {
+      await remoteDataSource.rejectComplaint(
+        complaintId: complaintId,
+        reason: reason,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

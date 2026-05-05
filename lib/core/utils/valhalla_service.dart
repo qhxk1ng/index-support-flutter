@@ -7,136 +7,177 @@ import '../constants/app_constants.dart';
 /// Service for interacting with a self-hosted Valhalla routing engine.
 class ValhallaService {
   static final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 6),
-    receiveTimeout: const Duration(seconds: 10),
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 15),
   ));
 
   // Limit concurrent requests so we don't overwhelm Valhalla.
   static const int _maxConcurrency = 4;
-  // Overall budget for a single traceRoute() call.
-  static const Duration _overallTimeout = Duration(seconds: 45);
 
-  // In-memory cache: hash of input points → snapped result.
+  // In-memory cache: hash of input points → list of snapped segments.
   // Prevents re-snapping the same trace on widget rebuilds.
-  static final Map<int, List<LatLng>> _cache = <int, List<LatLng>>{};
+  static final Map<int, List<List<LatLng>>> _segCache =
+      <int, List<List<LatLng>>>{};
   static const int _cacheMaxEntries = 32;
 
+  // ── Tunable thresholds ──────────────────────────────────────────
+  // Two consecutive GPS points further apart than this are treated as
+  // a signal-loss gap and the trace is split there — we NEVER bridge
+  // these with a straight line.
+  static const double _gapMeters = 400.0;
+
+  // Time gap (seconds) that also splits the trace. Phone sleep / app
+  // backgrounded typically shows up as a multi-minute pause between
+  // samples with moderate distance jump.
+  static const int _gapSeconds = 300;
+
+  // Speed (km/h) above which we treat the jump as a GPS glitch, not
+  // real motion — 120 km/h is higher than any legal driving speed here.
+  static const double _maxSpeedKmh = 120.0;
+
+  // Near-duplicate filter: consecutive samples closer than this are
+  // folded into the previous kept point (keeps timestamps aligned).
+  static const double _duplicateMeters = 15.0;
+
+  // Snap-quality validation knobs.
+  // The first/last snapped point must be within this distance (m) of
+  // the corresponding raw point — otherwise trace_route bolted onto
+  // the wrong road. Loose enough to accept real urban GPS drift while
+  // still catching wrong-road lock-ons (which usually offset > 400 m).
+  static const double _endpointDriftMeters = 350.0;
+
+  // The snapped polyline length must stay within these multiples of
+  // the raw GPS trace length. Catches detours where map-matching
+  // sent the route down an unrelated road and back — but the bounds
+  // are loose because road-following naturally inflates length vs
+  // a noisy straight-cutting GPS trace.
+  static const double _minLengthRatio = 0.3;
+  static const double _maxLengthRatio = 4.0;
+
   // ── Snap GPS trace to roads ─────────────────────────────────────
-  // Strategy: try trace_route (map matching) first; if a batch fails,
-  // fall back to routing between consecutive GPS waypoints which
-  // always produces road-following paths. All batches run in parallel
-  // with a bounded concurrency cap.
-  static Future<List<LatLng>> traceRoute(
+  // Returns one polyline per continuous road-snapped segment. Any gap
+  // (signal loss, stationary period, GPS glitch, or unmatchable region)
+  // becomes a break between segments — the UI must render each segment
+  // as its own polyline so gaps stay visible rather than getting bridged
+  // by a straight line through buildings / rivers / nothing.
+  //
+  // Pipeline per sub-trace:
+  //   1. Filter near-duplicates (< 15 m)
+  //   2. Split at spatial / temporal / velocity gaps
+  //   3. For each sub-trace, try Valhalla `trace_route` with tight params
+  //   4. Validate endpoints drift + length ratio — reject bad snaps
+  //   5. On reject, fall back to `route`-along-subsampled-waypoints
+  //   6. On another reject, emit raw filtered points (last-resort so the
+  //      user at least sees approximate direction)
+  static Future<List<List<LatLng>>> traceRoute(
     List<LatLng> points, {
     List<DateTime>? timestamps,
     List<double?>? headings,
   }) async {
-    if (points.length < 2) return [];
+    if (points.length < 2) return const [];
 
-    // Pre-filter: remove stationary / near-duplicate points (< 25m apart)
-    // Slightly larger than before to trim low-signal GPS jitter faster.
-    final filterResult = _filterNearDuplicatesWithMeta(points, 25.0, timestamps, headings);
-    final filtered = filterResult.points;
-    if (filtered.length < 2) return points;
+    // 1. Pre-filter near-duplicates to keep trace_route request size sane.
+    final filtered = _filterNearDuplicatesWithMeta(
+      points,
+      _duplicateMeters,
+      timestamps,
+      headings,
+    );
+    if (filtered.points.length < 2) return const [];
 
-    // Cache lookup
-    final cacheKey = _hashPoints(filtered);
-    final cached = _cache[cacheKey];
+    // Cache lookup on the filtered trace.
+    final cacheKey = _hashPoints(filtered.points);
+    final cached = _segCache[cacheKey];
     if (cached != null) {
-      debugPrint('Valhalla: cache hit (${cached.length} points)');
+      debugPrint('Valhalla: cache hit (${cached.length} segments)');
       return cached;
     }
 
-    debugPrint('Valhalla: ${points.length} raw → ${filtered.length} filtered points');
-
-    try {
-      final result = await _tryTraceRoute(
-        filtered,
-        filterResult.timestamps,
-        filterResult.headings,
-      ).timeout(_overallTimeout);
-
-      if (result.length >= 2) {
-        debugPrint('Valhalla snap done: ${result.length} points');
-        _cachePut(cacheKey, result);
-        return result;
-      }
-    } on TimeoutException {
-      debugPrint('Valhalla snap overall timeout — returning filtered GPS');
-    } catch (e) {
-      debugPrint('Valhalla snap error: $e');
-    }
-
-    // Last resort: raw (but filtered) GPS trace
-    return filtered;
-  }
-
-  // Try Valhalla trace_route with minimal request body.
-  // Batches run in parallel (bounded by _maxConcurrency). If a batch fails
-  // or produces too few points, that specific batch falls back to routing.
-  static Future<List<LatLng>> _tryTraceRoute(
-    List<LatLng> pts,
-    List<DateTime>? timestamps,
-    List<double?>? headings,
-  ) async {
-    const batchSize = 80;
-
-    // Build batch descriptors first (sequential index so we can stitch later).
-    final batches = <({int index, List<LatLng> pts, List<DateTime>? ts, List<double?>? hd})>[];
-    for (int start = 0; start < pts.length - 1; start += batchSize - 1) {
-      final end = (start + batchSize).clamp(0, pts.length);
-      final batch = pts.sublist(start, end);
-      if (batch.length < 2) break;
-      batches.add((
-        index: batches.length,
-        pts: batch,
-        ts: timestamps?.sublist(start, end),
-        hd: headings?.sublist(start, end),
-      ));
-    }
-
-    // Run all batches in parallel with a concurrency cap.
-    final results = List<List<LatLng>>.filled(batches.length, const <LatLng>[]);
-    await _runBounded<void>(
-      batches,
-      _maxConcurrency,
-      (b) async {
-        results[b.index] = await _snapSingleBatch(b.pts, b.ts, b.hd);
-      },
+    // 2. Split at gaps so we never ask trace_route to bridge signal loss.
+    final subTraces = _splitAtGaps(
+      filtered.points,
+      filtered.timestamps,
+      filtered.headings,
     );
 
-    // Stitch sequentially, de-duplicating the join point between batches.
-    final merged = <LatLng>[];
-    for (final seg in results) {
-      if (seg.isEmpty) continue;
-      if (merged.isNotEmpty && _samePoint(merged.last, seg.first)) {
-        merged.addAll(seg.skip(1));
-      } else {
-        merged.addAll(seg);
-      }
+    debugPrint(
+      'Valhalla: ${points.length} raw → ${filtered.points.length} filtered '
+      '→ ${subTraces.length} sub-traces',
+    );
+
+    // 3+4+5. Snap each sub-trace independently.
+    final segments = <List<LatLng>>[];
+    for (final sub in subTraces) {
+      if (sub.pts.length < 2) continue;
+      final snapped = await _snapSubTrace(sub.pts, sub.ts, sub.hd);
+      if (snapped.length >= 2) segments.add(snapped);
     }
-    return merged;
+
+    _segCachePut(cacheKey, segments);
+    debugPrint('Valhalla snap done: ${segments.length} segments');
+    return segments;
   }
 
-  // Snap one batch via trace_route. If it returns ANY usable result, use it.
-  // If it fails entirely, return raw GPS for that batch (no cascading retries).
-  // This eliminates the "snapping loop" caused by deep fallback chains.
-  static Future<List<LatLng>> _snapSingleBatch(
-    List<LatLng> batch,
-    List<DateTime>? batchTs,
-    List<double?>? batchHd,
+  // ── Single-sub-trace snapping ───────────────────────────────────
+  // Runs the three-stage fallback on one continuous GPS sub-trace.
+  static Future<List<LatLng>> _snapSubTrace(
+    List<LatLng> pts,
+    List<DateTime>? ts,
+    List<double?>? hd,
+  ) async {
+    // Stage A: trace_route. Large sub-traces are split into overlapping
+    // batches so Valhalla isn't asked to match 1000+ points in one call.
+    final snapA = pts.length <= 100
+        ? await _traceRouteOnce(pts, ts, hd)
+        : await _traceRouteBatched(pts, ts, hd);
+
+    if (_validateSnap(pts, snapA)) return snapA;
+    if (snapA.length >= 2) {
+      debugPrint('trace_route produced invalid snap '
+          '(endpoints drift or length ratio out of bounds), trying route');
+    }
+
+    // Stage B: route along subsampled waypoints — more forgiving when
+    // GPS is noisy but can still produce a sensible road path.
+    final subsampled = _subsample(pts, maxPoints: 20);
+    final snapB = await _routeAlongWaypoints(subsampled);
+    if (_validateSnap(pts, snapB)) return snapB;
+
+    // Stage C: raw filtered trace (NOT a straight line — real samples,
+    // just not road-snapped). Caller can style these differently if it
+    // wants to indicate "unsnapped". Length check prevents emitting a
+    // single straight segment across a huge gap.
+    if (_totalLengthMeters(pts) < _gapMeters * 2) {
+      debugPrint('Falling back to raw trace for ${pts.length} points');
+      return List<LatLng>.from(pts);
+    }
+
+    // Trace is too sparse / long for honest rendering — drop it entirely
+    // so the map shows a gap instead of a misleading line.
+    debugPrint('Dropping ${pts.length} pts: too sparse to render honestly');
+    return const [];
+  }
+
+  // ── Stage A: trace_route (map matching) ─────────────────────────
+  // Single trace_route call. Tight `search_radius` + `gps_accuracy`
+  // reduce snapping to nearby wrong roads (e.g. parallel service roads).
+  // `turn_penalty_factor` discourages meandering via unlikely turns.
+  static Future<List<LatLng>> _traceRouteOnce(
+    List<LatLng> pts,
+    List<DateTime>? ts,
+    List<double?>? hd,
   ) async {
     final shape = <Map<String, dynamic>>[];
-    for (int i = 0; i < batch.length; i++) {
+    for (int i = 0; i < pts.length; i++) {
       final point = <String, dynamic>{
-        'lat': batch[i].latitude,
-        'lon': batch[i].longitude,
+        'lat': pts[i].latitude,
+        'lon': pts[i].longitude,
       };
-      if (batchTs != null && i < batchTs.length) {
-        point['time'] = (batchTs[i].millisecondsSinceEpoch / 1000).round();
+      if (ts != null && i < ts.length) {
+        point['time'] = (ts[i].millisecondsSinceEpoch / 1000).round();
       }
-      if (batchHd != null && i < batchHd.length && batchHd[i] != null && batchHd[i]! >= 0) {
-        point['heading'] = batchHd[i];
+      if (hd != null && i < hd.length && hd[i] != null && hd[i]! >= 0) {
+        point['heading'] = hd[i];
         point['heading_tolerance'] = 45;
       }
       shape.add(point);
@@ -149,8 +190,13 @@ class ValhallaService {
           'shape': shape,
           'costing': 'auto',
           'shape_match': 'map_snap',
-          'search_radius': 100, // wider radius = fewer failed matches
-          'gps_accuracy': 20,
+          'search_radius': 35,
+          'gps_accuracy': 15,
+          'trace_options': <String, dynamic>{
+            'search_radius': 35.0,
+            'gps_accuracy': 15.0,
+            'turn_penalty_factor': 1.0,
+          },
         },
         options: Options(
           contentType: 'application/json',
@@ -159,30 +205,247 @@ class ValhallaService {
       );
 
       if (resp.statusCode == 200) {
-        final legs = resp.data['trip']?['legs'] as List?;
-        if (legs != null && legs.isNotEmpty) {
-          final snapped = <LatLng>[];
-          for (final leg in legs) {
-            final encoded = leg['shape'] as String?;
-            if (encoded == null || encoded.isEmpty) continue;
-            final decoded = decodePolyline6(encoded);
-            if (snapped.isNotEmpty && decoded.isNotEmpty && _samePoint(snapped.last, decoded.first)) {
-              decoded.removeAt(0);
-            }
-            snapped.addAll(decoded);
-          }
-          // Trust any non-empty result from trace_route
-          if (snapped.length >= 2) return snapped;
-        }
+        return _decodeLegs(resp.data['trip']?['legs'] as List?);
       }
     } catch (e) {
-      debugPrint('trace_route batch error: $e');
+      debugPrint('trace_route error: $e');
+    }
+    return const [];
+  }
+
+  // Batched trace_route for long sub-traces (>100 points). Overlaps
+  // boundaries by one point so Valhalla can stitch the legs cleanly.
+  static Future<List<LatLng>> _traceRouteBatched(
+    List<LatLng> pts,
+    List<DateTime>? ts,
+    List<double?>? hd,
+  ) async {
+    const batchSize = 80;
+
+    final batches = <({
+      int index,
+      List<LatLng> pts,
+      List<DateTime>? ts,
+      List<double?>? hd,
+    })>[];
+    for (int start = 0; start < pts.length - 1; start += batchSize - 1) {
+      final end = (start + batchSize).clamp(0, pts.length);
+      final batch = pts.sublist(start, end);
+      if (batch.length < 2) break;
+      batches.add((
+        index: batches.length,
+        pts: batch,
+        ts: ts?.sublist(start, end),
+        hd: hd?.sublist(start, end),
+      ));
     }
 
-    // No cascading fallback — just return raw GPS for this batch.
-    // The rest of the trace's batches still get snapped properly.
-    debugPrint('trace_route batch failed (${batch.length} pts), keeping raw GPS for this segment');
-    return List<LatLng>.from(batch);
+    final results = List<List<LatLng>>.filled(batches.length, const <LatLng>[]);
+    await _runBounded<void>(
+      batches,
+      _maxConcurrency,
+      (b) async {
+        final snap = await _traceRouteOnce(b.pts, b.ts, b.hd);
+        // Per-batch validation: if this batch snap is bad, skip it —
+        // don't let one bad chunk poison the whole stitched polyline.
+        if (_validateSnap(b.pts, snap)) {
+          results[b.index] = snap;
+        }
+      },
+    );
+
+    return _stitch(results);
+  }
+
+  // ── Stage B: route-along-waypoints ──────────────────────────────
+  // Asks Valhalla to compute a driving route through a sequence of
+  // waypoints. Subsampling down to ≤20 keeps the request small and
+  // avoids Valhalla's "too many locations" errors.
+  static Future<List<LatLng>> _routeAlongWaypoints(List<LatLng> pts) async {
+    if (pts.length < 2) return const [];
+
+    final locations = pts
+        .map((p) => <String, dynamic>{'lat': p.latitude, 'lon': p.longitude})
+        .toList();
+
+    try {
+      final resp = await _dio.post(
+        '${AppConstants.valhallaBaseUrl}/route',
+        data: <String, dynamic>{
+          'locations': locations,
+          'costing': 'auto',
+        },
+        options: Options(
+          contentType: 'application/json',
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+
+      if (resp.statusCode == 200) {
+        return _decodeLegs(resp.data['trip']?['legs'] as List?);
+      }
+    } catch (e) {
+      debugPrint('route fallback error: $e');
+    }
+    return const [];
+  }
+
+  // ── Snap quality gate ───────────────────────────────────────────
+  // Rejects snaps where (a) the endpoints drifted too far from the
+  // input GPS (map-matcher locked onto a wrong road), or (b) the
+  // snapped length is wildly inflated/collapsed vs raw GPS (detour).
+  static bool _validateSnap(List<LatLng> raw, List<LatLng> snapped) {
+    if (snapped.length < 2) return false;
+    if (raw.length < 2) return true;
+
+    const dist = Distance();
+    final firstDrift = dist.as(LengthUnit.Meter, raw.first, snapped.first);
+    final lastDrift = dist.as(LengthUnit.Meter, raw.last, snapped.last);
+    if (firstDrift > _endpointDriftMeters || lastDrift > _endpointDriftMeters) {
+      debugPrint(
+        'Snap rejected: endpoint drift '
+        '(first=${firstDrift.toStringAsFixed(0)}m, '
+        'last=${lastDrift.toStringAsFixed(0)}m)',
+      );
+      return false;
+    }
+
+    final rawLen = _totalLengthMeters(raw);
+    // Only enforce the length ratio on non-trivial traces (> 50 m), so
+    // that short hops near a stop aren't rejected over noise.
+    if (rawLen > 50) {
+      final snapLen = _totalLengthMeters(snapped);
+      final ratio = snapLen / rawLen;
+      if (ratio < _minLengthRatio || ratio > _maxLengthRatio) {
+        debugPrint(
+          'Snap rejected: length ratio ${ratio.toStringAsFixed(2)} '
+          '(raw=${rawLen.toStringAsFixed(0)}m snap=${snapLen.toStringAsFixed(0)}m)',
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // ── Gap-based splitting ─────────────────────────────────────────
+  // Breaks the trace wherever consecutive samples exceed spatial,
+  // temporal, or velocity thresholds. Each returned sub-trace is
+  // safely continuous — trace_route can handle it end-to-end.
+  static List<({List<LatLng> pts, List<DateTime>? ts, List<double?>? hd})>
+      _splitAtGaps(
+    List<LatLng> pts,
+    List<DateTime>? ts,
+    List<double?>? hd,
+  ) {
+    final segments = <({
+      List<LatLng> pts,
+      List<DateTime>? ts,
+      List<double?>? hd,
+    })>[];
+    final curPts = <LatLng>[pts.first];
+    final curTs = ts != null ? <DateTime>[ts.first] : null;
+    final curHd = hd != null ? <double?>[hd.first] : null;
+    const dist = Distance();
+
+    void flush() {
+      if (curPts.length >= 2) {
+        segments.add((
+          pts: List<LatLng>.from(curPts),
+          ts: curTs != null ? List<DateTime>.from(curTs) : null,
+          hd: curHd != null ? List<double?>.from(curHd) : null,
+        ));
+      }
+      curPts.clear();
+      curTs?.clear();
+      curHd?.clear();
+    }
+
+    for (int i = 1; i < pts.length; i++) {
+      final d = dist.as(LengthUnit.Meter, pts[i - 1], pts[i]);
+      var split = d > _gapMeters;
+
+      if (!split && ts != null) {
+        final dtSec = ts[i].difference(ts[i - 1]).inSeconds;
+        // Sleep/backgrounded app: long pause plus meaningful motion.
+        if (dtSec > _gapSeconds && d > 100) split = true;
+        // GPS glitch: impossibly fast jump between samples.
+        if (dtSec > 0) {
+          final speedKmh = (d / dtSec) * 3.6;
+          if (speedKmh > _maxSpeedKmh) split = true;
+        }
+      }
+
+      if (split) {
+        flush();
+      }
+
+      curPts.add(pts[i]);
+      curTs?.add(ts![i]);
+      curHd?.add(hd![i]);
+    }
+
+    flush();
+    return segments;
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────
+  // Concatenate per-batch segments, de-duplicating the shared boundary.
+  static List<LatLng> _stitch(List<List<LatLng>> pieces) {
+    final out = <LatLng>[];
+    for (final seg in pieces) {
+      if (seg.isEmpty) continue;
+      if (out.isNotEmpty && _samePoint(out.last, seg.first)) {
+        out.addAll(seg.skip(1));
+      } else {
+        out.addAll(seg);
+      }
+    }
+    return out;
+  }
+
+  // Decode Valhalla `legs[*].shape` (polyline6) into a continuous list
+  // of LatLng, stripping the duplicate point between adjacent legs.
+  static List<LatLng> _decodeLegs(List? legs) {
+    if (legs == null || legs.isEmpty) return const [];
+    final out = <LatLng>[];
+    for (final leg in legs) {
+      final encoded = leg['shape'] as String?;
+      if (encoded == null || encoded.isEmpty) continue;
+      final decoded = decodePolyline6(encoded);
+      if (out.isNotEmpty &&
+          decoded.isNotEmpty &&
+          _samePoint(out.last, decoded.first)) {
+        decoded.removeAt(0);
+      }
+      out.addAll(decoded);
+    }
+    return out;
+  }
+
+  // Evenly pick up to [maxPoints] samples from [pts] preserving the
+  // first and last points. Used to keep `/route` requests under the
+  // Valhalla waypoint cap while still hinting at the GPS trajectory.
+  static List<LatLng> _subsample(List<LatLng> pts, {required int maxPoints}) {
+    if (pts.length <= maxPoints) return List<LatLng>.from(pts);
+    final out = <LatLng>[];
+    final step = (pts.length - 1) / (maxPoints - 1);
+    for (int i = 0; i < maxPoints; i++) {
+      final idx = (i * step).round().clamp(0, pts.length - 1);
+      out.add(pts[idx]);
+    }
+    return out;
+  }
+
+  // Sum of great-circle distances (m) between consecutive points.
+  static double _totalLengthMeters(List<LatLng> pts) {
+    if (pts.length < 2) return 0;
+    const dist = Distance();
+    double total = 0;
+    for (int i = 1; i < pts.length; i++) {
+      total += dist.as(LengthUnit.Meter, pts[i - 1], pts[i]);
+    }
+    return total;
   }
 
   // Run [task] over [items] with at most [maxConcurrent] in-flight.
@@ -218,11 +481,11 @@ class ValhallaService {
     return h;
   }
 
-  static void _cachePut(int key, List<LatLng> value) {
-    if (_cache.length >= _cacheMaxEntries) {
-      _cache.remove(_cache.keys.first);
+  static void _segCachePut(int key, List<List<LatLng>> value) {
+    if (_segCache.length >= _cacheMaxEntries) {
+      _segCache.remove(_segCache.keys.first);
     }
-    _cache[key] = value;
+    _segCache[key] = value;
   }
 
   // Remove GPS points within [minMeters] of the previous kept point,
@@ -253,6 +516,77 @@ class ValhallaService {
       if (headings != null) rHd!.add(headings.last);
     }
     return (points: rPts, timestamps: rTs, headings: rHd);
+  }
+
+  // ── Valhalla multi-waypoint route ─────────────────────────────────
+  // Chains an arbitrary list of waypoints through a single Valhalla
+  // /route call and returns one combined polyline + per-leg distances
+  // + total distance (km). The caller keeps stops in the order given
+  // (no reordering / TSP solving). Used for the field-personnel route
+  // plan map which renders the day's planned journey: start → stop1
+  // → stop2 → ... → home.
+  static Future<({List<LatLng> points, List<double> legKm, double distanceKm})>
+      routeWaypoints(List<LatLng> waypoints) async {
+    if (waypoints.length < 2) {
+      return (points: <LatLng>[], legKm: <double>[], distanceKm: 0.0);
+    }
+
+    try {
+      final body = {
+        'locations': waypoints
+            .map((p) => {'lat': p.latitude, 'lon': p.longitude})
+            .toList(),
+        'costing': 'auto',
+        'units': 'kilometers',
+      };
+
+      final resp = await _dio.post(
+        '${AppConstants.valhallaBaseUrl}/route',
+        data: body,
+        options: Options(
+          contentType: 'application/json',
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+
+      if (resp.statusCode != 200) {
+        debugPrint('Valhalla multi-route failed: ${resp.statusCode}');
+        return (points: <LatLng>[], legKm: <double>[], distanceKm: 0.0);
+      }
+
+      final trip = resp.data['trip'];
+      if (trip == null) {
+        return (points: <LatLng>[], legKm: <double>[], distanceKm: 0.0);
+      }
+
+      final legs = trip['legs'] as List?;
+      if (legs == null || legs.isEmpty) {
+        return (points: <LatLng>[], legKm: <double>[], distanceKm: 0.0);
+      }
+
+      final allPoints = <LatLng>[];
+      final legKm = <double>[];
+      for (final leg in legs) {
+        final encoded = leg['shape'] as String?;
+        if (encoded != null && encoded.isNotEmpty) {
+          final decoded = decodePolyline6(encoded);
+          if (allPoints.isNotEmpty && decoded.isNotEmpty) {
+            if (_samePoint(allPoints.last, decoded.first)) {
+              decoded.removeAt(0);
+            }
+          }
+          allPoints.addAll(decoded);
+        }
+        legKm.add((leg['summary']?['length'] as num?)?.toDouble() ?? 0.0);
+      }
+
+      final distanceKm =
+          (trip['summary']?['length'] as num?)?.toDouble() ?? 0.0;
+      return (points: allPoints, legKm: legKm, distanceKm: distanceKm);
+    } catch (e) {
+      debugPrint('Valhalla multi-route error: $e');
+      return (points: <LatLng>[], legKm: <double>[], distanceKm: 0.0);
+    }
   }
 
   // ── Valhalla route (Directions) ──────────────────────────────────

@@ -92,7 +92,30 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
           ),
         ],
       ),
-      body: BlocBuilder<AdminBloc, AdminState>(
+      body: BlocConsumer<AdminBloc, AdminState>(
+        listener: (context, state) {
+          if (state is ComplaintReassigned) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Complaint reassigned successfully'),
+                backgroundColor: Color(0xFFF59E0B),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+            context.read<AdminBloc>().add(GetAllComplaintsEvent());
+          } else if (state is ComplaintRejected) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Complaint rejected successfully'),
+                backgroundColor: Color(0xFFF59E0B),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+            context.read<AdminBloc>().add(GetAllComplaintsEvent());
+          }
+        },
         builder: (context, state) {
           if (state is AdminLoading) {
             return const Center(
@@ -456,6 +479,23 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
                   ),
                 ),
               ],
+              if (complaint.status == 'ASSIGNED' || complaint.status == 'IN_PROGRESS') ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showReassignDialog(context, complaint),
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Reassign Technician'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
               if (complaint.journeyStarted &&
                   (complaint.status == 'IN_PROGRESS' || complaint.status == 'ASSIGNED')) ...[
                 const SizedBox(height: 12),
@@ -482,6 +522,40 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
+                ),
+              ],
+              if (complaint.status != 'COMPLETED' && complaint.status != 'CANCELLED') ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showRejectDialog(context, complaint),
+                        icon: const Icon(Icons.cancel, size: 18),
+                        label: const Text('Reject'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _instantReject(context, complaint),
+                        icon: const Icon(Icons.flash_on, size: 18),
+                        label: const Text('Quick'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
               const SizedBox(height: 8),
@@ -591,9 +665,13 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
                     _buildDetailRow('Address', complaint.address!),
                   _buildDetailRow('Location', '${complaint.latitude}, ${complaint.longitude}'),
                   if (complaint.images != null && complaint.images!.isNotEmpty)
-                    _buildImageSection(context, complaint.images!),
+                    _buildImageSection(context, complaint.images!, 'Initial Photos'),
+                  if (complaint.completionImages != null && complaint.completionImages!.isNotEmpty)
+                    _buildImageSection(context, complaint.completionImages!, 'Completion Photos'),
+                  if (complaint.completionRemarks != null && complaint.completionRemarks!.isNotEmpty)
+                    _buildDetailRow('Completion Remarks', complaint.completionRemarks!),
                   if (complaint.technicianName != null)
-                    _buildDetailRow('Technician', complaint.technicianName!),
+                    _buildDetailRow('Technician', complaint.technicianName!)
                   _buildDetailRow('Created', DateFormat('MMM dd, yyyy HH:mm').format(complaint.createdAt)),
                   _buildDetailRow('Updated', DateFormat('MMM dd, yyyy HH:mm').format(complaint.updatedAt)),
                 ],
@@ -632,7 +710,7 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
     );
   }
 
-  Widget _buildImageSection(BuildContext context, List<String> images) {
+  Widget _buildImageSection(BuildContext context, List<String> images, String title) {
     debugPrint('Building image section with ${images.length} images: $images');
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -640,7 +718,7 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Images (${images.length})',
+            '$title (${images.length})',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -713,6 +791,169 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
         },
       ),
     );
+  }
+
+  Future<void> _showReassignDialog(BuildContext context, AdminComplaintEntity complaint) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _ReassignTechnicianDialog(
+        complaintId: complaint.id,
+        onReassigned: () {
+          context.read<AdminBloc>().add(GetAllComplaintsEvent());
+        },
+      ),
+    );
+  }
+
+  Future<void> _showRejectDialog(BuildContext context, AdminComplaintEntity complaint) async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('Reject Complaint', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This will cancel the complaint and notify the customer and assigned technician (if any).',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'Enter reason for rejection...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        context.read<AdminBloc>().add(RejectComplaintEvent(
+          complaintId: complaint.id,
+          reason: reasonController.text,
+        ));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Rejecting complaint...'),
+              backgroundColor: Color(0xFFF59E0B),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to reject: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+    reasonController.dispose();
+  }
+
+  Future<void> _instantReject(BuildContext context, AdminComplaintEntity complaint) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.flash_on, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('Quick Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to instantly reject this complaint? This action cannot be undone.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Reject Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        context.read<AdminBloc>().add(RejectComplaintEvent(
+          complaintId: complaint.id,
+          reason: '',
+        ));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Complaint rejected instantly'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to reject: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _showDeleteDialog(BuildContext context, AdminComplaintEntity complaint) async {
@@ -1115,6 +1356,7 @@ class _AssignTechnicianDialogState extends State<_AssignTechnicianDialog> {
                                 final activeJobs = (tech['activeJobs'] as num?)?.toInt() ?? 0;
                                 final locSource = tech['locationSource'] as String?;
                                 final lastJob = tech['lastJobLocation'] as Map<String, dynamic>?;
+                                final activeJob = tech['activeJobLocation'] as Map<String, dynamic>?;
 
                                 return Material(
                                   color: Colors.transparent,
@@ -1220,22 +1462,38 @@ class _AssignTechnicianDialogState extends State<_AssignTechnicianDialog> {
                                                   Row(
                                                     children: [
                                                       Icon(
-                                                        locSource == 'last_job' ? Icons.location_on : locSource == 'registered' ? Icons.home : Icons.gps_fixed,
+                                                        locSource == 'active_job'
+                                                            ? Icons.work_outline
+                                                            : locSource == 'last_job'
+                                                                ? Icons.location_on
+                                                                : locSource == 'registered'
+                                                                    ? Icons.home
+                                                                    : Icons.gps_fixed,
                                                         size: 12,
-                                                        color: locSource == 'last_job' ? Colors.green : Colors.blueGrey,
+                                                        color: locSource == 'active_job'
+                                                            ? Colors.orange
+                                                            : locSource == 'last_job'
+                                                                ? Colors.green
+                                                                : Colors.blueGrey,
                                                       ),
                                                       const SizedBox(width: 4),
                                                       Text(
-                                                        locSource == 'last_job'
-                                                            ? 'From last job${lastJob?['ticketNumber'] != null ? ' #${lastJob!['ticketNumber']}' : ''}'
-                                                            : locSource == 'registered'
-                                                                ? 'From home location'
-                                                                : locSource == 'gps'
-                                                                    ? 'From GPS'
-                                                                    : 'Unknown source',
+                                                        locSource == 'active_job'
+                                                            ? 'From active job #${(activeJob?['ticketNumber']?.toString()) ?? ''}'
+                                                            : locSource == 'last_job'
+                                                                ? 'From last job${lastJob?['ticketNumber'] != null ? ' #${lastJob!['ticketNumber']}' : ''}'
+                                                                : locSource == 'registered'
+                                                                    ? 'From home location'
+                                                                    : locSource == 'gps'
+                                                                        ? 'From GPS'
+                                                                        : 'Unknown source',
                                                         style: TextStyle(
                                                           fontSize: 11,
-                                                          color: locSource == 'last_job' ? Colors.green : Colors.blueGrey,
+                                                          color: locSource == 'active_job'
+                                                              ? Colors.orange
+                                                              : locSource == 'last_job'
+                                                                  ? Colors.green
+                                                                  : Colors.blueGrey,
                                                           fontWeight: FontWeight.w500,
                                                         ),
                                                       ),
@@ -1271,6 +1529,360 @@ class _AssignTechnicianDialogState extends State<_AssignTechnicianDialog> {
                     ),
                     SizedBox(width: 12),
                     Text('Assigning...', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReassignTechnicianDialog extends StatefulWidget {
+  final String complaintId;
+  final VoidCallback onReassigned;
+
+  const _ReassignTechnicianDialog({
+    required this.complaintId,
+    required this.onReassigned,
+  });
+
+  @override
+  State<_ReassignTechnicianDialog> createState() => _ReassignTechnicianDialogState();
+}
+
+class _ReassignTechnicianDialogState extends State<_ReassignTechnicianDialog> {
+  bool _isLoading = true;
+  bool _isReassigning = false;
+  String? _error;
+  List<Map<String, dynamic>> _technicians = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTechnicians();
+  }
+
+  Future<void> _fetchTechnicians() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      final apiClient = sl<ApiClient>();
+      final response = await apiClient.get(
+        '/admin/complaint/${widget.complaintId}/technicians',
+      );
+      final data = response.data['data'] as List;
+      if (mounted) {
+        setState(() {
+          _technicians = data.cast<Map<String, dynamic>>();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to load technicians';
+        });
+      }
+    }
+  }
+
+  Future<void> _reassignTechnician(String technicianId) async {
+    try {
+      setState(() => _isReassigning = true);
+      final apiClient = sl<ApiClient>();
+      await apiClient.post(
+        '/admin/complaint/${widget.complaintId}/reassign',
+        data: {'technicianId': technicianId},
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Complaint reassigned successfully'),
+            backgroundColor: const Color(0xFFF59E0B),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        widget.onReassigned();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isReassigning = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reassign: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: double.maxFinite,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF59E0B),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.swap_horiz, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Reassign Technician',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: _isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : _error != null
+                      ? Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, style: const TextStyle(color: Colors.red)),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _fetchTechnicians,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _technicians.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(40),
+                              child: Text(
+                                'No technicians available',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.all(12),
+                              itemCount: _technicians.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final tech = _technicians[index];
+                                final isOnline = tech['isOnline'] == true;
+                                final distanceKm = tech['distanceKm'] as num?;
+                                final activeJobs = (tech['activeJobs'] as num?)?.toInt() ?? 0;
+                                final locSource = tech['locationSource'] as String?;
+                                final lastJob = tech['lastJobLocation'] as Map<String, dynamic>?;
+                                final activeJob = tech['activeJobLocation'] as Map<String, dynamic>?;
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _isReassigning
+                                        ? null
+                                        : () => _reassignTechnician(tech['id'] as String),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isOnline
+                                              ? const Color(0xFF10B981).withOpacity(0.3)
+                                              : Colors.grey[200]!,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 22,
+                                            backgroundColor: isOnline
+                                                ? const Color(0xFF10B981).withOpacity(0.1)
+                                                : Colors.grey[100],
+                                            child: Icon(
+                                              Icons.engineering,
+                                              color: isOnline
+                                                  ? const Color(0xFF10B981)
+                                                  : Colors.grey,
+                                              size: 22,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        tech['name'] as String? ?? 'Unknown',
+                                                        style: const TextStyle(
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFF1F2937),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      width: 8,
+                                                      height: 8,
+                                                      decoration: BoxDecoration(
+                                                        color: isOnline
+                                                            ? const Color(0xFF10B981)
+                                                            : Colors.grey,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    if (distanceKm != null) ...[
+                                                      Icon(Icons.route, size: 14, color: Colors.grey[500]),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        '${distanceKm.toStringAsFixed(1)} km',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: Colors.grey[600],
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                    ],
+                                                    Icon(Icons.work_outline, size: 14, color: Colors.grey[500]),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '$activeJobs active',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: activeJobs > 0
+                                                            ? Colors.orange
+                                                            : Colors.grey[600],
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (locSource != null || lastJob != null) ...[
+                                                  const SizedBox(height: 3),
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        locSource == 'active_job'
+                                                            ? Icons.work_outline
+                                                            : locSource == 'last_job'
+                                                                ? Icons.location_on
+                                                                : locSource == 'registered'
+                                                                    ? Icons.home
+                                                                    : Icons.gps_fixed,
+                                                        size: 12,
+                                                        color: locSource == 'active_job'
+                                                            ? Colors.orange
+                                                            : locSource == 'last_job'
+                                                                ? Colors.green
+                                                                : Colors.blueGrey,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        locSource == 'active_job'
+                                                            ? 'From active job #${(activeJob?['ticketNumber']?.toString()) ?? ''}'
+                                                            : locSource == 'last_job'
+                                                                ? 'From last job${lastJob?['ticketNumber'] != null ? ' #${lastJob!['ticketNumber']}' : ''}'
+                                                                : locSource == 'registered'
+                                                                    ? 'From home location'
+                                                                    : locSource == 'gps'
+                                                                        ? 'From GPS'
+                                                                        : 'Unknown source',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: locSource == 'active_job'
+                                                              ? Colors.orange
+                                                              : locSource == 'last_job'
+                                                                  ? Colors.green
+                                                                  : Colors.blueGrey,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 14,
+                                            color: Colors.grey[400],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+            ),
+            if (_isReassigning)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Reassigning...', style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),

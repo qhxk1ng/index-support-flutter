@@ -21,10 +21,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _otpController = TextEditingController();
 
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
+  String? _deletePhone;
+  String? _deleteUserId;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnim;
@@ -55,6 +58,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
@@ -210,6 +214,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
             _confirmPasswordController.clear();
           } else if (state is AccountDeleted) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (state is OtpSent) {
+            _deletePhone = state.phoneNumber;
+            _deleteUserId = state.userId;
+            Navigator.of(context).pop(); // close loading
+            _showOtpDialog();
+          } else if (state is OtpVerified) {
+            Navigator.of(context).pop(); // close OTP dialog
+            _showFinalDeleteConfirmation();
           } else if (state is AuthError) {
             _showErrorDialog(state.message);
           }
@@ -592,6 +604,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   void _confirmDeleteAccount() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return;
+    final phone = authState.user.phoneNumber;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -604,7 +620,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
           ],
         ),
         content: const Text(
-          'This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you sure you want to proceed?',
+          'We will send an OTP to your registered phone number to confirm deletion.\n\nThis action is irreversible and all your data will be permanently removed.',
           style: TextStyle(height: 1.5),
         ),
         actions: [
@@ -615,6 +631,110 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogContext);
+              context.read<AuthBloc>().add(
+                SendOtpEvent(phoneNumber: phone, type: 'DELETE_ACCOUNT'),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Send OTP'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOtpDialog() {
+    _otpController.clear();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Verify OTP', style: TextStyle(fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Enter the OTP sent to $_deletePhone',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '6-digit OTP',
+                counterText: '',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: Colors.grey[200]!),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_otpController.text.trim().length < 4) return;
+              context.read<AuthBloc>().add(
+                VerifyOtpEvent(
+                  userId: _deleteUserId!,
+                  otp: _otpController.text.trim(),
+                  type: 'DELETE_ACCOUNT',
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFinalDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Final Confirmation', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'OTP verified. This is your last chance to cancel.\n\nYour account and all data will be permanently deleted from the database.',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Keep Account'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
               context.read<AuthBloc>().add(DeleteAccountEvent());
             },
             style: ElevatedButton.styleFrom(
@@ -624,7 +744,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Delete'),
+            child: const Text('Permanently Delete'),
           ),
         ],
       ),

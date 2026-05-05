@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -63,12 +65,9 @@ class _RegisterPageState extends State<RegisterPage> {
         });
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location services are disabled. Please enable them in settings.'),
-              backgroundColor: AppColors.error,
-              duration: Duration(seconds: 3),
-            ),
+          AppSnackbar.showError(
+            context,
+            'Location services are disabled. Please enable them in settings.',
           );
         }
         return;
@@ -84,12 +83,7 @@ class _RegisterPageState extends State<RegisterPage> {
           });
           
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Location permission denied'),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            AppSnackbar.showError(context, 'Location permission denied');
           }
           return;
         }
@@ -101,12 +95,9 @@ class _RegisterPageState extends State<RegisterPage> {
         });
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location permissions are permanently denied. Please enable them in app settings.'),
-              backgroundColor: AppColors.error,
-              duration: Duration(seconds: 4),
-            ),
+          AppSnackbar.showError(
+            context,
+            'Location permissions are permanently denied. Please enable them in app settings.',
           );
         }
         return;
@@ -124,12 +115,7 @@ class _RegisterPageState extends State<RegisterPage> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location captured successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        AppSnackbar.showSuccess(context, 'Location captured successfully');
       }
     } catch (e) {
       setState(() {
@@ -137,12 +123,7 @@ class _RegisterPageState extends State<RegisterPage> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to get location: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -158,12 +139,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void _handleRegister() {
     if (_formKey.currentState!.validate()) {
       if (_latitude == null || _longitude == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please capture your location'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackbar.showWarning(context, 'Please capture your location');
         return;
       }
       
@@ -189,13 +165,10 @@ class _RegisterPageState extends State<RegisterPage> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is RegistrationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Registration successful! OTP sent to your phone and email.'),
-                backgroundColor: AppColors.success,
-              ),
+            AppSnackbar.showSuccess(
+              context,
+              'Registration successful! OTP sent to your phone and email.',
             );
-            
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -207,18 +180,10 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             );
           } else if (state is AuthError) {
-            String errorMsg = state.message;
-            final lower = errorMsg.toLowerCase();
-            if (lower.contains('already registered')) {
-              errorMsg = 'This phone number is already registered. Please login instead.';
-            } else if (lower.contains('otp') && lower.contains('fail')) {
-              errorMsg = 'Failed to send OTP. Please try again.';
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMsg),
-                backgroundColor: AppColors.error,
-              ),
+            AppErrorDialog.show(
+              context,
+              state.message,
+              onRetry: _handleRegister,
             );
           }
         },

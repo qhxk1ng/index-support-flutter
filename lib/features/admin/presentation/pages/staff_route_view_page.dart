@@ -6,13 +6,18 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/valhalla_service.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/datasources/admin_remote_data_source.dart';
 
 class _Trip {
   final List<LatLng> rawPoints;
   final List<DateTime> timestamps;
   final List<double?> headings;
-  List<LatLng> snappedPoints;
+  // List of continuous road-snapped polyline segments. Multiple entries
+  // indicate GPS gaps — the UI renders each as its own polyline so
+  // gaps stay visually apparent instead of being bridged by a straight
+  // line through unrelated terrain.
+  List<List<LatLng>> snappedSegments;
   final Color color;
   final int index;
   bool visible;
@@ -26,7 +31,9 @@ class _Trip {
     required this.index,
     this.visible = true,
     this.snapping = false,
-  }) : snappedPoints = [];
+  }) : snappedSegments = [];
+
+  bool get hasSnap => snappedSegments.any((s) => s.length >= 2);
 
   String get timeRange {
     if (timestamps.isEmpty) return '--';
@@ -334,21 +341,34 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     setState(() => trip.snapping = true);
 
     try {
-      final snapped = await ValhallaService.traceRoute(
+      final segments = await ValhallaService.traceRoute(
         trip.rawPoints,
         timestamps: trip.timestamps,
         headings: trip.headings,
       );
 
-      if (mounted) {
-        setState(() {
-          trip.snappedPoints = snapped.length >= 2 ? snapped : List.from(trip.rawPoints);
-          trip.snapping = false;
-        });
+      if (!mounted) return;
+
+      setState(() {
+        trip.snappedSegments = segments;
+        trip.snapping = false;
+      });
+
+      if (segments.isEmpty && trip.index == 0) {
+        // Only warn once for the first trip so we don't spam the user.
+        AppSnackbar.showWarning(
+          context,
+          'Map service is unavailable — showing raw GPS instead.',
+          title: 'Snap unavailable',
+        );
       }
     } catch (e) {
       debugPrint('Snap error for trip ${trip.index}: $e');
-      if (mounted) setState(() => trip.snapping = false);
+      if (!mounted) return;
+      setState(() => trip.snapping = false);
+      if (trip.index == 0) {
+        AppSnackbar.showError(context, e, isMapRequest: true);
+      }
     }
   }
 
@@ -711,16 +731,28 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     final polylines = <Polyline<Object>>[];
     for (final trip in _trips) {
       if (!trip.visible) continue;
-      final points = trip.snappedPoints.length >= 2 ? trip.snappedPoints : trip.rawPoints;
-      final isSnapped = trip.snappedPoints.length >= 2;
-      polylines.add(Polyline(
-        points: points,
-        strokeWidth: isSnapped ? 5 : 4,
-        color: trip.color,
-        borderStrokeWidth: isSnapped ? 2 : 0,
-        borderColor: isSnapped ? Colors.white : Colors.transparent,
-        pattern: isSnapped ? const StrokePattern.solid() : const StrokePattern.dotted(),
-      ));
+      if (trip.hasSnap) {
+        // One polyline per continuous snapped segment. Gaps between
+        // segments stay visible on the map instead of being bridged.
+        for (final seg in trip.snappedSegments) {
+          if (seg.length < 2) continue;
+          polylines.add(Polyline(
+            points: seg,
+            strokeWidth: 5,
+            color: trip.color,
+            borderStrokeWidth: 2,
+            borderColor: Colors.white,
+            pattern: const StrokePattern.solid(),
+          ));
+        }
+      } else if (trip.rawPoints.length >= 2) {
+        polylines.add(Polyline(
+          points: trip.rawPoints,
+          strokeWidth: 4,
+          color: trip.color,
+          pattern: const StrokePattern.dotted(),
+        ));
+      }
     }
     // Return route polyline (dashed red)
     if (_returnRoutePoints.length >= 2) {

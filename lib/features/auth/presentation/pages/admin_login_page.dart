@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -60,32 +61,16 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Admin login successful!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-            
+            AppSnackbar.showSuccess(context, 'Admin login successful!');
             Navigator.of(context).pushNamedAndRemoveUntil(
               '/home',
               (route) => false,
             );
           } else if (state is AuthError) {
-            String errorMsg = state.message;
-            final lower = errorMsg.toLowerCase();
-            if (lower.contains('invalid credentials')) {
-              errorMsg = 'Invalid admin phone number or password.';
-            } else if (lower.contains('invalid password')) {
-              errorMsg = 'Wrong password. Please try again.';
-            } else if (lower.contains('not found')) {
-              errorMsg = 'Admin account not found.';
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMsg),
-                backgroundColor: AppColors.error,
-              ),
+            AppErrorDialog.show(
+              context,
+              state.message,
+              onRetry: _handleAdminLogin,
             );
           }
         },

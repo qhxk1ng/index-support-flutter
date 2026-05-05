@@ -88,3 +88,29 @@ class RejectWarrantyEvent extends AdminEvent {
   @override
   List<Object?> get props => [warrantyId, reason];
 }
+
+class ReassignComplaintEvent extends AdminEvent {
+  final String complaintId;
+  final String technicianId;
+
+  const ReassignComplaintEvent({
+    required this.complaintId,
+    required this.technicianId,
+  });
+
+  @override
+  List<Object?> get props => [complaintId, technicianId];
+}
+
+class RejectComplaintEvent extends AdminEvent {
+  final String complaintId;
+  final String reason;
+
+  const RejectComplaintEvent({
+    required this.complaintId,
+    this.reason = '',
+  });
+
+  @override
+  List<Object?> get props => [complaintId, reason];
+}

@@ -55,6 +55,10 @@ abstract class AdminRemoteDataSource {
 
   Future<void> rejectWarranty({required String warrantyId, required String reason});
 
+  Future<void> reassignComplaint({required String complaintId, required String technicianId});
+
+  Future<void> rejectComplaint({required String complaintId, String reason = ''});
+
   Future<Map<String, dynamic>> getStaffRoute(String id, {String? startDate, String? endDate});
 
   Future<List<Map<String, dynamic>>> getLiveTracking();
@@ -297,6 +301,16 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
     await apiClient.post('/admin/warranty/warranties/$warrantyId/reject', data: {'reason': reason});
 
+  }
+
+  @override
+  Future<void> reassignComplaint({required String complaintId, required String technicianId}) async {
+    await apiClient.post('/admin/complaint/$complaintId/reassign', data: {'technicianId': technicianId});
+  }
+
+  @override
+  Future<void> rejectComplaint({required String complaintId, String reason = ''}) async {
+    await apiClient.post('/admin/complaint/$complaintId/reject', data: {'reason': reason});
   }
 
   @override

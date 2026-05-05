@@ -146,6 +146,8 @@ class AdminComplaintEntity extends Equatable {
   final bool journeyStarted;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<String>? completionImages;
+  final String? completionRemarks;
 
   const AdminComplaintEntity({
     required this.id,
@@ -163,6 +165,8 @@ class AdminComplaintEntity extends Equatable {
     required this.journeyStarted,
     required this.createdAt,
     required this.updatedAt,
+    this.completionImages,
+    this.completionRemarks,
   });
 
   @override
@@ -182,6 +186,8 @@ class AdminComplaintEntity extends Equatable {
         journeyStarted,
         createdAt,
         updatedAt,
+        completionImages,
+        completionRemarks,
       ];
 }
 

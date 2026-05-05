@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -27,7 +27,9 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordFocus = FocusNode();
 
   final List<String> _volumeSequence = [];
-  final List<String> _secretSequence = ['down', 'up', 'down', 'down'];
+  // Secret volume combo to open the admin login screen:
+  //   Volume DOWN, DOWN, UP, DOWN
+  final List<String> _secretSequence = ['down', 'down', 'up', 'down'];
   bool _obscurePassword = true;
 
   @override
@@ -73,135 +75,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  String _sanitizeError(String message) {
-    final lower = message.toLowerCase();
-
-    // Wrong password / invalid credentials
-    if (lower.contains('invalid password')) {
-      return 'Wrong password. Please try again.';
-    }
-    if (lower.contains('invalid credentials')) {
-      return 'Invalid phone number or password.';
-    }
-
-    // User not found
-    if (lower.contains('user not found') || lower.contains('not found')) {
-      return 'No account found with this phone number. Please register first.';
-    }
-
-    // Password not set
-    if (lower.contains('password not set')) {
-      return 'Password not set for this account. Please use OTP login.';
-    }
-
-    // Invalid or expired OTP
-    if (lower.contains('invalid') && lower.contains('otp')) {
-      return 'Invalid or expired OTP. Please try again.';
-    }
-
-    // No internet / network errors
-    if (lower.contains('no internet') ||
-        lower.contains('socketexception') ||
-        lower.contains('connection refused') ||
-        lower.contains('network error')) {
-      return 'No internet connection. Please check your network.';
-    }
-
-    // Timeout
-    if (lower.contains('timeout')) {
-      return 'Connection timed out. Please check your internet.';
-    }
-
-    // Server errors (500, 502, 503, etc.)
-    if (lower.contains('server error') ||
-        lower.contains('502') ||
-        lower.contains('503')) {
-      return 'Server is not responding. Please try again later.';
-    }
-
-    // Catch-all for raw technical errors only
-    if (lower.contains('dioexception') ||
-        lower.contains('handshakeexception') ||
-        lower.contains('errno') ||
-        lower.contains('type \'') ||
-        lower.contains('unexpected character')) {
-      return 'Something went wrong. Please try again later.';
-    }
-
-    return message;
-  }
-
-  void _showErrorDialog(String message) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Error',
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: FadeTransition(
-            opacity: anim1,
-            child: AlertDialog(
-              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.error_outline_rounded,
-                      color: AppColors.error,
-                      size: 36,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Login Failed',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _sanitizeError(message),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white70 : AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  CustomButton(
-                    text: 'OK',
-                    height: 48,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   String _normalizePhoneNumber(String phone) {
     final digits = phone.replaceAll(RegExp(r'\D'), '');
     if (digits.startsWith('91') && digits.length >= 12) {
@@ -243,7 +116,11 @@ class _LoginPageState extends State<LoginPage> {
             if (state is AuthAuthenticated) {
               Navigator.pushReplacementNamed(context, '/home');
             } else if (state is AuthError) {
-              _showErrorDialog(state.message);
+              AppErrorDialog.show(
+                context,
+                state.message,
+                onRetry: _handleLogin,
+              );
             }
           },
           builder: (context, state) {
@@ -455,22 +332,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 20),
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AdminLoginPage()),
-          ),
-          child: Text(
-            'Admin Login',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white38 : Colors.grey[400],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
         ),
         const SizedBox(height: 32),
       ],

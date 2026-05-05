@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -41,11 +42,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   void _handleVerifyOtp() {
     if (_formKey.currentState!.validate()) {
       if (widget.userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User ID is missing. Please try again.'),
-            backgroundColor: AppColors.error,
-          ),
+        AppSnackbar.showError(
+          context,
+          'User ID is missing. Please try again.',
         );
         return;
       }
@@ -104,36 +103,18 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               Navigator.pop(context);
             }
           } else if (state is PasswordSet) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Account created successfully! Please login.'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            AppSnackbar.showSuccess(context, 'Account created successfully! Please login.');
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const LoginPage()),
               (route) => false,
             );
           } else if (state is OtpSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('OTP sent successfully!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            AppSnackbar.showSuccess(context, 'OTP sent successfully!');
           } else if (state is AuthError) {
-            String errorMsg = state.message;
-            final lower = errorMsg.toLowerCase();
-            if (lower.contains('invalid') && lower.contains('otp')) {
-              errorMsg = 'Invalid or expired OTP. Please try again.';
-            } else if (lower.contains('not found')) {
-              errorMsg = 'No valid OTP found. Please request a new one.';
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMsg),
-                backgroundColor: AppColors.error,
-              ),
+            AppErrorDialog.show(
+              context,
+              state.message,
+              onRetry: _handleVerifyOtp,
             );
           }
         },

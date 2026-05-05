@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -54,12 +55,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is OtpSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('OTP sent to your phone!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            AppSnackbar.showSuccess(context, 'OTP sent to your phone!');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -71,18 +67,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             );
           } else if (state is AuthError) {
-            String errorMsg = state.message;
-            final lower = errorMsg.toLowerCase();
-            if (lower.contains('not found')) {
-              errorMsg = 'No account found with this phone number.';
-            } else if (lower.contains('otp') && lower.contains('fail')) {
-              errorMsg = 'Failed to send OTP. Please try again.';
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMsg),
-                backgroundColor: AppColors.error,
-              ),
+            AppErrorDialog.show(
+              context,
+              state.message,
+              onRetry: _handleSendOtp,
             );
           }
         },

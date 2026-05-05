@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -67,13 +68,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is PasswordSet) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Password set successfully! You can now login.'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-
+            AppSnackbar.showSuccess(context, 'Password set successfully! You can now login.');
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
                 builder: (context) => const LoginPage(),
@@ -81,11 +76,10 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
               (route) => false,
             );
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-              ),
+            AppErrorDialog.show(
+              context,
+              state.message,
+              onRetry: _handleSetPassword,
             );
           }
         },

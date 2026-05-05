@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/domain/entities/user_entity.dart';
+import '../../features/customer/presentation/pages/account_settings_page.dart';
 
 class AppSidebar extends StatelessWidget {
   final UserEntity? user;
@@ -241,11 +242,8 @@ class AppSidebar extends StatelessWidget {
   }
 
   void _showAccountSettings(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AccountSettingsSheet(user: user),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AccountSettingsPage()),
     );
   }
 
@@ -307,147 +305,6 @@ class SidebarMenuItem {
     this.isDestructive = false,
     this.trailing,
   });
-}
-
-// Account Settings Sheet
-class _AccountSettingsSheet extends StatelessWidget {
-  final UserEntity? user;
-
-  const _AccountSettingsSheet({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.settings_rounded, size: 28),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Account Settings',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Profile Info
-              _buildSettingItem(
-                icon: Icons.person_outline,
-                title: 'Name',
-                value: user?.name ?? 'Not set',
-              ),
-              _buildSettingItem(
-                icon: Icons.email_outlined,
-                title: 'Email',
-                value: user?.email ?? 'Not set',
-              ),
-              _buildSettingItem(
-                icon: Icons.phone_outlined,
-                title: 'Phone',
-                value: user?.phoneNumber ?? 'Not set',
-              ),
-              
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              
-              // Action Buttons
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit profile feature coming soon!')),
-                    );
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Profile'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Change password feature coming soon!')),
-                    );
-                  },
-                  icon: const Icon(Icons.lock_outline),
-                  label: const Text('Change Password'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 24, color: Colors.grey[600]),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // Help Sheet
