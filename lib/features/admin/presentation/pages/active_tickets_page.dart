@@ -96,9 +96,9 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
         listener: (context, state) {
           if (state is ComplaintReassigned) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Complaint reassigned successfully'),
-                backgroundColor: Color(0xFFF59E0B),
+              SnackBar(
+                content: const Text('Complaint reassigned successfully'),
+                backgroundColor: const Color(0xFFF59E0B),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -106,14 +106,23 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
             context.read<AdminBloc>().add(GetAllComplaintsEvent());
           } else if (state is ComplaintRejected) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Complaint rejected successfully'),
-                backgroundColor: Color(0xFFF59E0B),
+              SnackBar(
+                content: const Text('Complaint rejected successfully'),
+                backgroundColor: const Color(0xFFF59E0B),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             );
             context.read<AdminBloc>().add(GetAllComplaintsEvent());
+          } else if (state is AdminError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${state.message}'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -671,7 +680,7 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
                   if (complaint.completionRemarks != null && complaint.completionRemarks!.isNotEmpty)
                     _buildDetailRow('Completion Remarks', complaint.completionRemarks!),
                   if (complaint.technicianName != null)
-                    _buildDetailRow('Technician', complaint.technicianName!)
+                    _buildDetailRow('Technician', complaint.technicianName!),
                   _buildDetailRow('Created', DateFormat('MMM dd, yyyy HH:mm').format(complaint.createdAt)),
                   _buildDetailRow('Updated', DateFormat('MMM dd, yyyy HH:mm').format(complaint.updatedAt)),
                 ],
@@ -860,32 +869,10 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
     );
 
     if (confirmed == true) {
-      try {
-        context.read<AdminBloc>().add(RejectComplaintEvent(
-          complaintId: complaint.id,
-          reason: reasonController.text,
-        ));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Rejecting complaint...'),
-              backgroundColor: Color(0xFFF59E0B),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to reject: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
+      context.read<AdminBloc>().add(RejectComplaintEvent(
+        complaintId: complaint.id,
+        reason: reasonController.text,
+      ));
     }
     reasonController.dispose();
   }
@@ -927,32 +914,10 @@ class _ActiveTicketsViewState extends State<_ActiveTicketsView> with SingleTicke
     );
 
     if (confirmed == true) {
-      try {
-        context.read<AdminBloc>().add(RejectComplaintEvent(
-          complaintId: complaint.id,
-          reason: '',
-        ));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Complaint rejected instantly'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to reject: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
+      context.read<AdminBloc>().add(RejectComplaintEvent(
+        complaintId: complaint.id,
+        reason: '',
+      ));
     }
   }
 
@@ -1594,22 +1559,12 @@ class _ReassignTechnicianDialogState extends State<_ReassignTechnicianDialog> {
   Future<void> _reassignTechnician(String technicianId) async {
     try {
       setState(() => _isReassigning = true);
-      final apiClient = sl<ApiClient>();
-      await apiClient.post(
-        '/admin/complaint/${widget.complaintId}/reassign',
-        data: {'technicianId': technicianId},
-      );
+      context.read<AdminBloc>().add(ReassignComplaintEvent(
+        complaintId: widget.complaintId,
+        technicianId: technicianId,
+      ));
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Complaint reassigned successfully'),
-            backgroundColor: const Color(0xFFF59E0B),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        widget.onReassigned();
       }
     } catch (e) {
       if (mounted) {

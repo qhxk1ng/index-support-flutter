@@ -178,8 +178,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     ReassignComplaintEvent event,
     Emitter<AdminState> emit,
   ) async {
-    emit(AdminLoading());
-
     final result = await adminRepository.reassignComplaint(
       complaintId: event.complaintId,
       technicianId: event.technicianId,
@@ -195,8 +193,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     RejectComplaintEvent event,
     Emitter<AdminState> emit,
   ) async {
-    emit(AdminLoading());
-
     final result = await adminRepository.rejectComplaint(
       complaintId: event.complaintId,
       reason: event.reason,

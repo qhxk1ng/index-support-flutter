@@ -7,8 +7,8 @@ class LocationTrackingService {
   final ApiClient _apiClient;
   Timer? _locationTimer;
   Timer? _heartbeatTimer;
-  bool _isTracking = false;
   Position? _lastKnownPosition;
+  bool _isTracking = false;
 
   LocationTrackingService(this._apiClient);
 
