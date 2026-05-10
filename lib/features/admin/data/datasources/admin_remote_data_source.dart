@@ -1,5 +1,7 @@
 import '../../../../core/constants/app_constants.dart';
 
+import '../../../../core/error/exceptions.dart';
+
 import '../../../../core/network/api_client.dart';
 
 import 'package:flutter/foundation.dart';
@@ -304,13 +306,35 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   }
 
   @override
-  Future<void> reassignComplaint({required String complaintId, required String technicianId}) async {
-    await apiClient.post('/admin/complaint/$complaintId/reassign', data: {'technicianId': technicianId});
+  Future<void> reassignComplaint({
+    required String complaintId,
+    required String technicianId,
+  }) async {
+    final response = await apiClient.post(
+      ApiEndpoints.reassignComplaint(complaintId),
+      data: {'technicianId': technicianId},
+    );
+    if (response.data['success'] != true) {
+      throw ServerException(
+        response.data['message']?.toString() ?? 'Failed to reassign complaint',
+      );
+    }
   }
 
   @override
-  Future<void> rejectComplaint({required String complaintId, String reason = ''}) async {
-    await apiClient.post('/admin/complaint/$complaintId/reject', data: {'reason': reason});
+  Future<void> rejectComplaint({
+    required String complaintId,
+    String reason = '',
+  }) async {
+    final response = await apiClient.post(
+      ApiEndpoints.rejectComplaint(complaintId),
+      data: {'reason': reason},
+    );
+    if (response.data['success'] != true) {
+      throw ServerException(
+        response.data['message']?.toString() ?? 'Failed to reject complaint',
+      );
+    }
   }
 
   @override

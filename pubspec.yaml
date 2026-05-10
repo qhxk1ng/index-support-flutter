@@ -63,6 +63,9 @@ dependencies:
 
   # QR Code
   mobile_scanner: ^5.2.3
+
+  # WebView (account deletion page)
+  webview_flutter: ^4.2.2
   qr_flutter: ^4.1.0
 
 dev_dependencies:

@@ -29,7 +29,9 @@ class ValhallaService {
   // Time gap (seconds) that also splits the trace. Phone sleep / app
   // backgrounded typically shows up as a multi-minute pause between
   // samples with moderate distance jump.
-  static const int _gapSeconds = 300;
+  // Increased from 300s to 600s to avoid splitting at short stops
+  // (traffic lights, parking, quick store visits).
+  static const int _gapSeconds = 600;
 
   // Speed (km/h) above which we treat the jump as a GPS glitch, not
   // real motion — 120 km/h is higher than any legal driving speed here.
@@ -37,22 +39,25 @@ class ValhallaService {
 
   // Near-duplicate filter: consecutive samples closer than this are
   // folded into the previous kept point (keeps timestamps aligned).
-  static const double _duplicateMeters = 15.0;
+  // Aligned to web (12m) — removes noisy near-duplicates that confuse
+  // Valhalla's map matcher while still preserving low-speed motion.
+  static const double _duplicateMeters = 12.0;
 
   // Snap-quality validation knobs.
   // The first/last snapped point must be within this distance (m) of
   // the corresponding raw point — otherwise trace_route bolted onto
-  // the wrong road. Loose enough to accept real urban GPS drift while
-  // still catching wrong-road lock-ons (which usually offset > 400 m).
-  static const double _endpointDriftMeters = 350.0;
+  // the wrong road. Reduced from 350m to 200m to catch wrong-road
+  // lock-ons earlier while still accepting urban GPS drift.
+  static const double _endpointDriftMeters = 200.0;
 
   // The snapped polyline length must stay within these multiples of
   // the raw GPS trace length. Catches detours where map-matching
   // sent the route down an unrelated road and back — but the bounds
   // are loose because road-following naturally inflates length vs
   // a noisy straight-cutting GPS trace.
+  // Tightened max ratio from 3.0 to 2.2: detour >2.2x raw GPS = likely wrong road.
   static const double _minLengthRatio = 0.3;
-  static const double _maxLengthRatio = 4.0;
+  static const double _maxLengthRatio = 2.2;
 
   // ── Snap GPS trace to roads ─────────────────────────────────────
   // Returns one polyline per continuous road-snapped segment. Any gap
@@ -162,6 +167,7 @@ class ValhallaService {
   // Single trace_route call. Tight `search_radius` + `gps_accuracy`
   // reduce snapping to nearby wrong roads (e.g. parallel service roads).
   // `turn_penalty_factor` discourages meandering via unlikely turns.
+  // Added costing options to restrict to drivable roads only (avoid service roads, alleys, etc.)
   static Future<List<LatLng>> _traceRouteOnce(
     List<LatLng> pts,
     List<DateTime>? ts,
@@ -190,12 +196,27 @@ class ValhallaService {
           'shape': shape,
           'costing': 'auto',
           'shape_match': 'map_snap',
-          'search_radius': 35,
-          'gps_accuracy': 15,
+          // Tightened from 35/15 to 25/12 to reduce snapping to nearby
+          // wrong roads (e.g. parallel service roads, highways).
+          'search_radius': 25,
+          'gps_accuracy': 12,
           'trace_options': <String, dynamic>{
-            'search_radius': 35.0,
-            'gps_accuracy': 15.0,
+            'search_radius': 25.0,
+            'gps_accuracy': 12.0,
             'turn_penalty_factor': 1.0,
+            // Break distance: penalize discontinuities heavily so
+            // trace_route stays close to the input GPS trace.
+            'break_distance': 100.0,
+          },
+          'costing_options': <String, dynamic>{
+            'auto': <String, dynamic>{
+              'exclude_unpaved': true,
+              'exclude_cash_only_tolls': false,
+              'exclude_ferries': false,
+              'service_penalty': 50.0, // Heavy penalty for service roads
+              'alley_penalty': 50.0, // Heavy penalty for alleys
+              'driving_side': 'right',
+            },
           },
         },
         options: Options(
@@ -257,14 +278,45 @@ class ValhallaService {
     return _stitch(results);
   }
 
-  // ── Stage B: route-along-waypoints ──────────────────────────────
-  // Asks Valhalla to compute a driving route through a sequence of
-  // waypoints. Subsampling down to ≤20 keeps the request small and
-  // avoids Valhalla's "too many locations" errors.
-  static Future<List<LatLng>> _routeAlongWaypoints(List<LatLng> pts) async {
-    if (pts.length < 2) return const [];
+  // ── Route a single pair of points (last-resort fallback) ───────
+  static Future<List<LatLng>?> _routePair(LatLng a, LatLng b) async {
+    try {
+      final resp = await _dio.post(
+        '${AppConstants.valhallaBaseUrl}/route',
+        data: <String, dynamic>{
+          'locations': [
+            {'lat': a.latitude, 'lon': a.longitude},
+            {'lat': b.latitude, 'lon': b.longitude},
+          ],
+          'costing': 'auto',
+          'costing_options': <String, dynamic>{
+            'auto': <String, dynamic>{
+              'exclude_unpaved': true,
+              'exclude_cash_only_tolls': false,
+              'exclude_ferries': false,
+              'service_penalty': 50.0,
+              'alley_penalty': 50.0,
+              'driving_side': 'right',
+            },
+          },
+        },
+        options: Options(
+          contentType: 'application/json',
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      if (resp.statusCode == 200) {
+        final legs = resp.data['trip']?['legs'] as List?;
+        final decoded = _decodeLegs(legs);
+        if (decoded.length >= 2) return decoded;
+      }
+    } catch (_) {}
+    return null;
+  }
 
-    final locations = pts
+  // Try /route for one batch of waypoints; on failure retry as parallel pairs.
+  static Future<List<LatLng>> _routeSingleBatch(List<LatLng> batch) async {
+    final locations = batch
         .map((p) => <String, dynamic>{'lat': p.latitude, 'lon': p.longitude})
         .toList();
 
@@ -274,31 +326,105 @@ class ValhallaService {
         data: <String, dynamic>{
           'locations': locations,
           'costing': 'auto',
+          'costing_options': <String, dynamic>{
+            'auto': <String, dynamic>{
+              'exclude_unpaved': true,
+              'exclude_cash_only_tolls': false,
+              'exclude_ferries': false,
+              'service_penalty': 50.0,
+              'alley_penalty': 50.0,
+              'driving_side': 'right',
+            },
+          },
         },
         options: Options(
           contentType: 'application/json',
           validateStatus: (s) => s != null && s < 500,
         ),
       );
-
       if (resp.statusCode == 200) {
-        return _decodeLegs(resp.data['trip']?['legs'] as List?);
+        final decoded = _decodeLegs(resp.data['trip']?['legs'] as List?);
+        if (decoded.length >= 2) return decoded;
       }
     } catch (e) {
-      debugPrint('route fallback error: $e');
+      debugPrint('route batch error: $e');
     }
-    return const [];
+
+    // Retry as parallel pairs
+    debugPrint('Route batch failed (${batch.length} pts), retrying as parallel pairs');
+    final pairs = <({int index, LatLng a, LatLng b})>[];
+    for (int i = 0; i < batch.length - 1; i++) {
+      pairs.add((index: i, a: batch[i], b: batch[i + 1]));
+    }
+
+    final pairResults = List<List<LatLng>?>.filled(pairs.length, null);
+    await _runBounded<void>(
+      pairs,
+      _maxConcurrency,
+      (p) async {
+        pairResults[p.index] = await _routePair(p.a, p.b);
+      },
+    );
+
+    final out = <LatLng>[];
+    for (int i = 0; i < pairs.length; i++) {
+      final seg = pairResults[i];
+      if (seg != null && seg.length >= 2) {
+        if (out.isNotEmpty && _samePoint(out.last, seg.first)) {
+          out.addAll(seg.skip(1));
+        } else {
+          out.addAll(seg);
+        }
+      } else {
+        // Last resort: raw line for this gap
+        if (out.isEmpty || !_samePoint(out.last, pairs[i].a)) {
+          out.add(pairs[i].a);
+        }
+        out.add(pairs[i].b);
+      }
+    }
+    return out;
+  }
+
+  // ── Stage B: route-along-waypoints ──────────────────────────────
+  // Batches of 10 run in parallel; failed batches fall back to parallel
+  // pair calls. Mirrors the web JS implementation exactly.
+  static Future<List<LatLng>> _routeAlongWaypoints(List<LatLng> pts) async {
+    if (pts.length < 2) return const [];
+
+    const maxWp = 10;
+    final batches = <({int index, List<LatLng> pts})>[];
+    for (int start = 0; start < pts.length - 1; start += maxWp - 1) {
+      final end = (start + maxWp).clamp(0, pts.length);
+      final batch = pts.sublist(start, end);
+      if (batch.length < 2) break;
+      batches.add((index: batches.length, pts: batch));
+    }
+
+    final results = List<List<LatLng>>.filled(batches.length, const <LatLng>[]);
+    await _runBounded<void>(
+      batches,
+      _maxConcurrency,
+      (b) async {
+        results[b.index] = await _routeSingleBatch(b.pts);
+      },
+    );
+
+    return _stitch(results);
   }
 
   // ── Snap quality gate ───────────────────────────────────────────
   // Rejects snaps where (a) the endpoints drifted too far from the
   // input GPS (map-matcher locked onto a wrong road), or (b) the
-  // snapped length is wildly inflated/collapsed vs raw GPS (detour).
+  // snapped length is wildly inflated/collapsed vs raw GPS (detour),
+  // or (c) mid-points deviate too far (wrong-road detour in middle).
   static bool _validateSnap(List<LatLng> raw, List<LatLng> snapped) {
     if (snapped.length < 2) return false;
     if (raw.length < 2) return true;
 
     const dist = Distance();
+
+    // Endpoint drift check
     final firstDrift = dist.as(LengthUnit.Meter, raw.first, snapped.first);
     final lastDrift = dist.as(LengthUnit.Meter, raw.last, snapped.last);
     if (firstDrift > _endpointDriftMeters || lastDrift > _endpointDriftMeters) {
@@ -310,6 +436,40 @@ class ValhallaService {
       return false;
     }
 
+    // Mid-point drift check: sample ~3 points along the raw trace
+    // and ensure the snapped path stays within 150m at those locations.
+    // Catches map-matcher sending the route down a parallel wrong road
+    // in the middle of the trace.
+    if (raw.length >= 5) {
+      // Tightened from 150m to 100m; parallel roads are typically 50-100 m away.
+      const midDriftLimit = 100.0;
+      // 5 evenly-spaced samples at 10/25/50/75/90 % to catch mid-route detours.
+      final checkIndices = <int>[
+        (raw.length * 0.10).floor().clamp(1, raw.length - 2),
+        (raw.length * 0.25).floor(),
+        (raw.length * 0.50).floor(),
+        (raw.length * 0.75).floor(),
+        (raw.length * 0.90).floor().clamp(1, raw.length - 2),
+      ];
+      for (final idx in checkIndices) {
+        final rawPt = raw[idx];
+        // Find nearest snapped point
+        var minDist = double.infinity;
+        for (final snapPt in snapped) {
+          final d = dist.as(LengthUnit.Meter, rawPt, snapPt);
+          if (d < minDist) minDist = d;
+        }
+        if (minDist > midDriftLimit) {
+          debugPrint(
+            'Snap rejected: mid-point drift at index $idx '
+            '(dist=${minDist.toStringAsFixed(0)}m > $midDriftLimit m)',
+          );
+          return false;
+        }
+      }
+    }
+
+    // Length ratio check
     final rawLen = _totalLengthMeters(raw);
     // Only enforce the length ratio on non-trivial traces (> 50 m), so
     // that short hops near a stop aren't rejected over noise.
@@ -525,6 +685,7 @@ class ValhallaService {
   // (no reordering / TSP solving). Used for the field-personnel route
   // plan map which renders the day's planned journey: start → stop1
   // → stop2 → ... → home.
+  // Added costing options to restrict to drivable roads only.
   static Future<({List<LatLng> points, List<double> legKm, double distanceKm})>
       routeWaypoints(List<LatLng> waypoints) async {
     if (waypoints.length < 2) {
@@ -538,6 +699,16 @@ class ValhallaService {
             .toList(),
         'costing': 'auto',
         'units': 'kilometers',
+        'costing_options': <String, dynamic>{
+          'auto': <String, dynamic>{
+            'exclude_unpaved': true,
+            'exclude_cash_only_tolls': false,
+            'exclude_ferries': false,
+            'service_penalty': 50.0,
+            'alley_penalty': 50.0,
+            'driving_side': 'right',
+          },
+        },
       };
 
       final resp = await _dio.post(
@@ -592,6 +763,7 @@ class ValhallaService {
   // ── Valhalla route (Directions) ──────────────────────────────────
   // Calculates the optimal driving route between two points.
   // Used for live tracking (technician → job site).
+  // Added costing options to restrict to drivable roads only.
   static Future<({List<LatLng> points, double distanceKm})> route(
     LatLng from,
     LatLng to,
@@ -604,6 +776,16 @@ class ValhallaService {
         ],
         'costing': 'auto',
         'units': 'kilometers',
+        'costing_options': <String, dynamic>{
+          'auto': <String, dynamic>{
+            'exclude_unpaved': true,
+            'exclude_cash_only_tolls': false,
+            'exclude_ferries': false,
+            'service_penalty': 50.0,
+            'alley_penalty': 50.0,
+            'driving_side': 'right',
+          },
+        },
       };
 
       final resp = await _dio.post(

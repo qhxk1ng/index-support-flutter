@@ -129,7 +129,9 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     Color(0xFF3B82F6),
   ];
 
-  static const _sessionGapMs = 15 * 60 * 1000;
+  // Increased from 15 min to 30 min to avoid splitting trips at short stops
+  // (traffic lights, parking, quick store visits).
+  static const _sessionGapMs = 30 * 60 * 1000;
 
   @override
   void initState() {
@@ -334,6 +336,23 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     return merged;
   }
 
+  // ── Road distance from all currently snapped segments ────────────
+  // Called after each trip snaps to progressively update the displayed km
+  // with the accurate Valhalla road distance instead of the backend's
+  // straight-line haversine estimate.
+  double _computeSnappedRoadKm() {
+    const dist = Distance();
+    double totalMeters = 0;
+    for (final trip in _trips) {
+      for (final seg in trip.snappedSegments) {
+        for (int i = 1; i < seg.length; i++) {
+          totalMeters += dist.as(LengthUnit.Meter, seg[i - 1], seg[i]);
+        }
+      }
+    }
+    return totalMeters / 1000.0;
+  }
+
   // ── Valhalla trace_route (Map Matching) ─────────────────────────
   // Uses self-hosted Valhalla to snap GPS traces to actual roads traveled.
   Future<void> _snapTripToRoads(_Trip trip) async {
@@ -348,10 +367,13 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
       );
 
       if (!mounted) return;
-
       setState(() {
         trip.snappedSegments = segments;
         trip.snapping = false;
+        // Update displayed km with road-snapped distance (more accurate than
+        // backend straight-line haversine). Accumulates as each trip snaps.
+        final roadKm = _computeSnappedRoadKm();
+        if (roadKm > 0) _totalKm = roadKm;
       });
 
       if (segments.isEmpty && trip.index == 0) {
@@ -365,7 +387,11 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     } catch (e) {
       debugPrint('Snap error for trip ${trip.index}: $e');
       if (!mounted) return;
-      setState(() => trip.snapping = false);
+      setState(() {
+        trip.snapping = false;
+        final roadKm = _computeSnappedRoadKm();
+        if (roadKm > 0) _totalKm = roadKm;
+      });
       if (trip.index == 0) {
         AppSnackbar.showError(context, e, isMapRequest: true);
       }
@@ -772,47 +798,81 @@ class _StaffRouteViewPageState extends State<StaffRouteViewPage> {
     final markers = <Marker>[];
     for (final trip in _trips) {
       if (!trip.visible || trip.rawPoints.isEmpty) continue;
+      // Start marker - green play icon
       markers.add(Marker(
         point: trip.rawPoints.first,
-        width: 36,
-        height: 36,
-        child: Icon(Icons.flag_circle, color: trip.color, size: 28),
+        width: 40,
+        height: 40,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 4)],
+          ),
+          child: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
+        ),
       ));
       if (trip.rawPoints.length >= 2) {
+        // End marker - red pin
         markers.add(Marker(
           point: trip.rawPoints.last,
-          width: 36,
-          height: 36,
-          child: Icon(Icons.location_on, color: trip.color.withAlpha(200), size: 28),
+          width: 40,
+          height: 40,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 4)],
+            ),
+            child: const Icon(Icons.location_on, color: Colors.white, size: 24),
+          ),
         ));
       }
     }
-    // Home marker
+    // Home marker - purple home icon
     if (_homeLocation != null) {
       final hLat = (_homeLocation!['latitude'] as num).toDouble();
       final hLng = (_homeLocation!['longitude'] as num).toDouble();
       markers.add(Marker(
         point: LatLng(hLat, hLng),
-        width: 40,
-        height: 40,
-        child: const Tooltip(
-          message: 'Registered Home',
-          child: Icon(Icons.home_rounded, color: Color(0xFFDC2626), size: 32),
+        width: 44,
+        height: 44,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B5CF6),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 4)],
+          ),
+          child: const Tooltip(
+            message: 'Registered Home',
+            child: Icon(Icons.home_rounded, color: Colors.white, size: 28),
+          ),
         ),
       ));
     }
-    // Last completed job marker
+    // Last completed job marker - orange work icon
     if (_lastJobLocation != null) {
       final jLat = (_lastJobLocation!['latitude'] as num).toDouble();
       final jLng = (_lastJobLocation!['longitude'] as num).toDouble();
       final ticket = _lastJobLocation!['ticketNumber'];
       markers.add(Marker(
         point: LatLng(jLat, jLng),
-        width: 40,
-        height: 40,
-        child: Tooltip(
-          message: 'Last Job${ticket != null ? ' #$ticket' : ''}',
-          child: const Icon(Icons.work_rounded, color: Color(0xFFDC2626), size: 28),
+        width: 44,
+        height: 44,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 4)],
+          ),
+          child: Tooltip(
+            message: 'Last Job${ticket != null ? ' #$ticket' : ''}',
+            child: const Icon(Icons.work_rounded, color: Colors.white, size: 24),
+          ),
         ),
       ));
     }

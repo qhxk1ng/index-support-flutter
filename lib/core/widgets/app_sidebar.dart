@@ -357,7 +357,7 @@ class _HelpSheet extends StatelessWidget {
               _buildHelpItem(
                 icon: Icons.email_outlined,
                 title: 'Email Support',
-                subtitle: 'support@indexinformatics.in',
+                subtitle: 'support@indexinformatics.com',
                 onTap: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(

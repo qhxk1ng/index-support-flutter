@@ -70,6 +70,8 @@ class ApiEndpoints {
   static String getStaffRoute(String id) => '/admin/staff/$id/route';
   static const String liveTracking = '/admin/live-tracking';
   static const String technicianRankings = '/admin/technician-rankings';
+  static String rejectComplaint(String id) => '/admin/complaint/$id/reject';
+  static String reassignComplaint(String id) => '/admin/complaint/$id/reassign';
   
   static const String createProduct = '/warranty/product';
   static const String getProducts = '/warranty/products';
