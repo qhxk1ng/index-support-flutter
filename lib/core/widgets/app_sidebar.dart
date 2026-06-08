@@ -170,7 +170,7 @@ class AppSidebar extends StatelessWidget {
                 border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
               child: Text(
-                _formatRole(user!.activeRole),
+                _formatRole(user!.activeRole!),
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

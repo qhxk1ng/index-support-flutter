@@ -84,39 +84,57 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
   }
 
   Future<void> _checkOnboarding() async {
-    // Check if all permissions are already granted — skip onboarding entirely
-    bool allGranted = true;
-    for (final step in _steps) {
-      final status = await step.permission.status;
-      if (!status.isGranted) {
-        allGranted = false;
-        break;
-      }
-    }
+    try {
+      // Check all permissions in parallel for fast first-paint.
+      // 1.5s timeout per check — long enough for a real device, short enough
+      // that the user never stares at a blank spinner.
+      final statuses = await Future.wait(_steps.map((step) async {
+        try {
+          return await step.permission.status
+              .timeout(const Duration(milliseconds: 1500), onTimeout: () {
+            debugPrint('Permission status check timed out for ${step.title}');
+            return PermissionStatus.denied;
+          });
+        } catch (e) {
+          debugPrint('Permission status check failed for ${step.title}: $e');
+          return PermissionStatus.denied;
+        }
+      }));
+      final allGranted = statuses.every((s) => s.isGranted);
 
-    if (allGranted) {
-      // All permissions granted — never show onboarding again
+      if (allGranted) {
+        // All permissions granted — never show onboarding again
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_prefKey, true);
+        if (mounted) {
+          setState(() {
+            _onboardingDone = true;
+            _loading = false;
+          });
+        }
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_prefKey, true);
+      final done = prefs.getBool(_prefKey) ?? false;
+      if (mounted) {
+        setState(() {
+          _onboardingDone = done;
+          _loading = false;
+        });
+        if (!done) {
+          _fadeController.forward();
+          _iconBounceController.forward();
+        }
+      }
+    } catch (e) {
+      // Safety net: never get stuck on loading
+      debugPrint('_checkOnboarding error: $e');
       if (mounted) {
         setState(() {
           _onboardingDone = true;
           _loading = false;
         });
-      }
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final done = prefs.getBool(_prefKey) ?? false;
-    if (mounted) {
-      setState(() {
-        _onboardingDone = done;
-        _loading = false;
-      });
-      if (!done) {
-        _fadeController.forward();
-        _iconBounceController.forward();
       }
     }
   }

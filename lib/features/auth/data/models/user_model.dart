@@ -7,7 +7,7 @@ class UserModel extends UserEntity {
     required super.name,
     super.email,
     required super.roles,
-    required super.activeRole,
+    super.activeRole,
     super.isPhoneVerified,
     super.createdAt,
   });
@@ -19,7 +19,7 @@ class UserModel extends UserEntity {
       name: json['name'] as String,
       email: json['email'] as String?,
       roles: (json['roles'] as List<dynamic>).map((e) => e as String).toList(),
-      activeRole: json['activeRole'] as String,
+      activeRole: json['activeRole'] as String?,
       isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)

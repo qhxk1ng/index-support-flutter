@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/services/background_location_service.dart';
+import '../../../../core/services/background_location_disclosure.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import 'dart:async';
 
@@ -23,12 +23,16 @@ class _InstallerDashboardPageState extends State<InstallerDashboardPage> {
   void initState() {
     super.initState();
     _loadIssues();
-    _startLocationTracking();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startLocationTracking());
   }
 
   Future<void> _startLocationTracking() async {
+    if (!mounted) return;
     try {
-      await BackgroundLocationService.start();
+      await BackgroundLocationDisclosure.requestAndStart(
+        context,
+        roleLabel: 'installer',
+      );
     } catch (e) {
       debugPrint('Background location start error: $e');
     }

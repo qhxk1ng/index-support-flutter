@@ -16,8 +16,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await di.init();
-  await BackgroundLocationService.initialize();
-  await ConnectivityService.instance.start();
+  
+  // Initialize services with error handling — don't let failures
+  // prevent the app from starting
+  try {
+    await BackgroundLocationService.initialize();
+  } catch (_) {
+    // Background location service init failed — app can still work
+  }
+  
+  try {
+    await ConnectivityService.instance.start();
+  } catch (_) {
+    // Connectivity monitoring failed — app can still work
+  }
   
   runApp(const MyApp());
 }

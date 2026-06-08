@@ -86,19 +86,21 @@ class BackgroundLocationService {
   static Future<void> initialize() async {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'location_tracking',
-        channelName: 'Location Tracking',
-        channelDescription: 'Sharing your location with the team',
+        channelId: 'index_care_service',
+        channelName: 'Index Care Service',
+        channelDescription: 'Index Care is running in the background',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
+        showBadge: false,
+        onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: false,
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(10000),
-        autoRunOnBoot: false,
+        eventAction: ForegroundTaskEventAction.repeat(30000),
+        autoRunOnBoot: true,
         allowWakeLock: true,
       ),
     );
@@ -111,7 +113,10 @@ class BackgroundLocationService {
     await FlutterForegroundTask.startService(
       serviceId: 1001,
       notificationTitle: 'Index Care',
-      notificationText: 'Sharing your location...',
+      notificationText: 'Working in background',
+      notificationIcon: const NotificationIcon(
+        metaDataName: 'ic_notification',
+      ),
       callback: startCallback,
     );
   }

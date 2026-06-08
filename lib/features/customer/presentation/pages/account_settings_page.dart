@@ -600,6 +600,15 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'AccountDeletion',
+        onMessageReceived: (JavaScriptMessage message) {
+          if (message.message == 'deleted') {
+            Navigator.of(context).pop();
+            context.read<AuthBloc>().add(LogoutEvent());
+          }
+        },
+      )
       ..loadRequest(Uri.parse(url));
 
     Navigator.of(context).push(MaterialPageRoute(

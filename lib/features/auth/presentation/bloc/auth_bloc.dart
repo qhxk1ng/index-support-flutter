@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/services/background_location_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../domain/entities/auth_response_entity.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -36,15 +38,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     
-    final isLoggedIn = await authRepository.isLoggedIn();
-    
-    if (isLoggedIn) {
-      final result = await authRepository.getProfile();
-      result.fold(
-        (failure) => emit(AuthUnauthenticated()),
-        (user) => emit(AuthAuthenticated(user: user)),
-      );
-    } else {
+    try {
+      // isLoggedIn is just a SharedPreferences read — keep it quick.
+      final isLoggedIn = await authRepository.isLoggedIn()
+          .timeout(const Duration(seconds: 2), onTimeout: () {
+        debugPrint('AuthBloc: isLoggedIn timed out');
+        return false;
+      });
+      
+      if (isLoggedIn) {
+        // getProfile is a network call — 6s is enough for a slow connection.
+        final result = await authRepository.getProfile()
+            .timeout(const Duration(seconds: 6), onTimeout: () {
+          debugPrint('AuthBloc: getProfile timed out');
+          return Left<Failure, UserEntity>(const ServerFailure('Request timed out'));
+        });
+        result.fold(
+          (failure) => emit(AuthUnauthenticated()),
+          (user) => emit(AuthAuthenticated(user: user)),
+        );
+      } else {
+        emit(AuthUnauthenticated());
+      }
+    } catch (e) {
+      // Safety net: if anything unexpected fails, go to login screen
+      // instead of staying stuck on loading forever
+      debugPrint('AuthBloc _onCheckAuthStatus error: $e');
       emit(AuthUnauthenticated());
     }
   }

@@ -306,10 +306,13 @@ class AuthRepositoryImpl implements AuthRepository {
       await storageService.clearAll();
       return const Right(null);
     } on ServerException catch (e) {
+      await storageService.clearAll();
       return Left(ServerFailure(e.message));
     } on NetworkException catch (e) {
+      await storageService.clearAll();
       return Left(NetworkFailure(e.message));
     } catch (e) {
+      await storageService.clearAll();
       return Left(ServerFailure(_sanitizeErrorMessage(e)));
     }
   }

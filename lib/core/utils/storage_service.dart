@@ -10,20 +10,41 @@ class StorageService {
   
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   SharedPreferences? _prefs;
+  String? _cachedToken;
+  bool _tokenLoaded = false;
   
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    // Warm the token cache once at startup so AuthInterceptor doesn't have to
+    // hit the Android Keystore on every API call (can be 100-500ms per call).
+    try {
+      _cachedToken = await _secureStorage.read(key: AppConstants.tokenKey);
+    } catch (_) {
+      _cachedToken = null;
+    }
+    _tokenLoaded = true;
   }
   
   Future<void> saveToken(String token) async {
+    _cachedToken = token;
+    _tokenLoaded = true;
     await _secureStorage.write(key: AppConstants.tokenKey, value: token);
   }
   
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: AppConstants.tokenKey);
+    if (_tokenLoaded) return _cachedToken;
+    try {
+      _cachedToken = await _secureStorage.read(key: AppConstants.tokenKey);
+    } catch (_) {
+      _cachedToken = null;
+    }
+    _tokenLoaded = true;
+    return _cachedToken;
   }
   
   Future<void> deleteToken() async {
+    _cachedToken = null;
+    _tokenLoaded = true;
     await _secureStorage.delete(key: AppConstants.tokenKey);
   }
   
@@ -40,8 +61,12 @@ class StorageService {
     return null;
   }
   
-  Future<void> saveActiveRole(String role) async {
-    await _prefs?.setString(AppConstants.activeRoleKey, role);
+  Future<void> saveActiveRole(String? role) async {
+    if (role == null) {
+      await _prefs?.remove(AppConstants.activeRoleKey);
+    } else {
+      await _prefs?.setString(AppConstants.activeRoleKey, role);
+    }
   }
   
   Future<String?> getActiveRole() async {
@@ -57,6 +82,8 @@ class StorageService {
   }
   
   Future<void> clearAll() async {
+    _cachedToken = null;
+    _tokenLoaded = true;
     await _secureStorage.deleteAll();
     await _prefs?.clear();
   }

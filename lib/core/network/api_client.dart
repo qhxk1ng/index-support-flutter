@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
@@ -24,14 +25,17 @@ class ApiClient {
     _dio.interceptors.addAll([
       AuthInterceptor(),
       ErrorInterceptor(),
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: false,
-        error: true,
-        compact: true,
-      ),
+      // Heavy request/response logging only in debug — printing full JSON
+      // payloads in release builds is a major performance hit on real devices.
+      if (kDebugMode)
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: false,
+          error: true,
+          compact: true,
+        ),
     ]);
   }
   

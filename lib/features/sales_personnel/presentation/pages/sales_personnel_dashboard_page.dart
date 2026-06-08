@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/background_location_service.dart';
+import '../../../../core/services/background_location_disclosure.dart';
 import '../../../../core/widgets/sidebar_wrapper.dart';
 import '../../../../core/widgets/app_sidebar.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
@@ -14,7 +15,6 @@ import 'log_activity_page.dart';
 import 'sales_leads_page.dart';
 import 'expenses_page.dart';
 import 'activities_list_page.dart';
-import '../../../../core/services/background_location_service.dart';
 
 class SalesPersonnelDashboardPage extends StatefulWidget {
   const SalesPersonnelDashboardPage({super.key});
@@ -33,7 +33,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   @override
   void initState() {
     super.initState();
-    _startLocationTracking();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startLocationTracking());
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -61,8 +61,12 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
   }
 
   Future<void> _startLocationTracking() async {
+    if (!mounted) return;
     try {
-      await BackgroundLocationService.start();
+      await BackgroundLocationDisclosure.requestAndStart(
+        context,
+        roleLabel: 'sales personnel',
+      );
     } catch (e) {
       debugPrint('Background location start error: $e');
     }

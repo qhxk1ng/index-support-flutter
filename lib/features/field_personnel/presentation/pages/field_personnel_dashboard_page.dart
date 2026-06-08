@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/services/background_location_service.dart';
+import '../../../../core/services/background_location_disclosure.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -40,7 +41,7 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
   @override
   void initState() {
     super.initState();
-    _initializeLocationTracking();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeLocationTracking());
     _loadStats();
     _pollPendingJobs();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadStats());
@@ -55,8 +56,12 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
   }
 
   Future<void> _initializeLocationTracking() async {
+    if (!mounted) return;
     try {
-      await BackgroundLocationService.start();
+      await BackgroundLocationDisclosure.requestAndStart(
+        context,
+        roleLabel: 'field technician',
+      );
     } catch (e) {
       debugPrint('Background location start error: $e');
     }
