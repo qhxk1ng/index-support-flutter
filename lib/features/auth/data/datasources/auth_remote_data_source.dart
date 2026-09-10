@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/auth_response_model.dart';
@@ -54,6 +53,13 @@ abstract class AuthRemoteDataSource {
     required double longitude,
     required String address,
   });
+
+  Future<Map<String, dynamic>> requestRoleUpgrade({
+    required String requestedRole,
+    String? reason,
+  });
+
+  Future<List<Map<String, dynamic>>> getMyUpgradeRequests();
 
   Future<void> logout();
 
@@ -247,5 +253,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> deleteAccount() async {
     await apiClient.delete(ApiEndpoints.deleteAccount);
+  }
+
+  @override
+  Future<Map<String, dynamic>> requestRoleUpgrade({
+    required String requestedRole,
+    String? reason,
+  }) async {
+    final response = await apiClient.post(
+      ApiEndpoints.requestRoleUpgrade,
+      data: {
+        'requestedRole': requestedRole,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getMyUpgradeRequests() async {
+    final response = await apiClient.get(ApiEndpoints.myRoleUpgradeRequests);
+    final list = response.data['data'] as List<dynamic>? ?? [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 }

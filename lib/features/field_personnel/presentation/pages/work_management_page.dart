@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'dart:io';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 
 /// Page for managing work on a specific complaint ticket.
 /// Handles: QR scan / manual start → log parts replaced → end work.
@@ -181,9 +182,7 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
       } catch (e) {
         setState(() => _isLoading = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload error: $e'), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, e);
         }
       }
     }
@@ -209,17 +208,13 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
           _verifiedSerial = serialNumber;
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Work started!'), backgroundColor: Color(0xFF10B981)),
-        );
+        AppSnackbar.showSuccess(context, 'Work started successfully!');
         _loadWorkLogs();
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -316,16 +311,12 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
           'longitude': position.longitude,
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('"${partNameCtrl.text.trim()}" replacement logged'), backgroundColor: const Color(0xFF10B981)),
-          );
+          AppSnackbar.showSuccess(context, '"${partNameCtrl.text.trim()}" replacement logged');
           _loadWorkLogs();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, e);
         }
       }
     }
@@ -401,17 +392,13 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
             _workEnded = true;
             _isLoading = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Work ended!'), backgroundColor: Color(0xFF10B981)),
-          );
+          AppSnackbar.showSuccess(context, 'Work ended successfully!');
           _loadWorkLogs();
         }
       } catch (e) {
         setState(() => _isLoading = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, e);
         }
       }
     }

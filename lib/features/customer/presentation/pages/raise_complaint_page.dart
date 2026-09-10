@@ -9,6 +9,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../customer/data/models/warranty_model.dart';
@@ -80,12 +81,7 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location captured successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        AppSnackbar.showSuccess(context, 'Location captured successfully');
       }
     } catch (e) {
       setState(() {
@@ -93,12 +89,7 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to get location: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -115,12 +106,7 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
   Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       if (_currentPosition == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please capture your location first'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackbar.showError(context, 'Please capture your location first before submitting.');
         return;
       }
 
@@ -153,12 +139,9 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
             imageUrls = List<String>.from(response.data['data']);
           }
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to upload images: ${e.toString()}'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          if (mounted) {
+            AppSnackbar.showError(context, 'Failed to upload images: ${e.toString()}');
+          }
           return;
         }
       }
@@ -209,20 +192,10 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
       body: BlocConsumer<CustomerBloc, CustomerState>(
         listener: (context, state) {
           if (state is ComplaintRaised) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Complaint raised successfully!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            AppSnackbar.showSuccess(context, 'Complaint raised successfully!');
             Navigator.pop(context, true);
           } else if (state is CustomerError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            AppSnackbar.showError(context, state.message);
           } else if (state is WarrantiesLoaded) {
             setState(() {
               _warranties = state.warranties.cast<WarrantyModel>();

@@ -28,7 +28,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     final profileResult = await repository.getProfile();
 
     statsResult.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (stats) {
         profileResult.fold(
           (failure) => emit(DashboardLoaded(stats: stats)),
@@ -47,7 +47,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     final result = await repository.getProfile();
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (profile) => emit(ProfileLoaded(profile: profile)),
     );
   }
@@ -62,7 +62,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     String? visitingCardUrl;
     if (event.visitingCardFile != null) {
       final uploadResult = await repository.uploadImages([event.visitingCardFile!]);
-      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      final failed = uploadResult.fold<String?>((f) => f.message, (_) => null);
       if (failed != null) {
         emit(SalesPersonnelError(message: 'Failed to upload visiting card: $failed'));
         return;
@@ -75,7 +75,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     List<String>? businessImageUrls;
     if (event.businessImageFiles.isNotEmpty) {
       final uploadResult = await repository.uploadImages(event.businessImageFiles);
-      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      final failed = uploadResult.fold<String?>((f) => f.message, (_) => null);
       if (failed != null) {
         emit(SalesPersonnelError(message: 'Failed to upload business images: $failed'));
         return;
@@ -96,7 +96,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (activity) => emit(ActivityLogged(activity: activity)),
     );
   }
@@ -113,7 +113,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (activity) => emit(ActivityEnded(activity: activity)),
     );
   }
@@ -130,7 +130,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (activities) => emit(ActivitiesLoaded(activities: activities)),
     );
   }
@@ -154,7 +154,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (lead) => emit(LeadCreated(lead: lead)),
     );
   }
@@ -168,7 +168,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     final result = await repository.getLeads(status: event.status);
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (leads) => emit(LeadsLoaded(leads: leads)),
     );
   }
@@ -183,7 +183,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     List<String>? receiptUrls;
     if (event.receiptImageFiles.isNotEmpty) {
       final uploadResult = await repository.uploadImages(event.receiptImageFiles);
-      final failed = uploadResult.fold<String?>((f) => f.toString(), (_) => null);
+      final failed = uploadResult.fold<String?>((f) => f.message, (_) => null);
       if (failed != null) {
         emit(SalesPersonnelError(message: 'Failed to upload receipts: $failed'));
         return;
@@ -200,7 +200,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (expense) => emit(ExpenseRecorded(expense: expense)),
     );
   }
@@ -217,7 +217,7 @@ class SalesPersonnelBloc extends Bloc<SalesPersonnelEvent, SalesPersonnelState> 
     );
 
     result.fold(
-      (failure) => emit(SalesPersonnelError(message: failure.toString())),
+      (failure) => emit(SalesPersonnelError(message: failure.message)),
       (expenses) => emit(ExpensesLoaded(expenses: expenses)),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../bloc/sales_personnel_bloc.dart';
 import '../bloc/sales_personnel_event.dart';
 import '../bloc/sales_personnel_state.dart';
@@ -51,7 +52,7 @@ class _LogActivityPageState extends State<LogActivityPage> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showSnackBar('Location services are disabled. Please enable them.', isError: true);
+        if (mounted) AppSnackbar.showError(context, 'Location services are disabled. Please turn on GPS in settings.');
         setState(() => _isLoadingLocation = false);
         return;
       }
@@ -60,22 +61,32 @@ class _LogActivityPageState extends State<LogActivityPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permission denied', isError: true);
+          if (mounted) AppSnackbar.showError(context, 'Location permission denied. Please grant location access.');
           setState(() => _isLoadingLocation = false);
           return;
         }
       }
 
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) AppSnackbar.showError(context, 'Location permission permanently denied. Please enable in app settings.');
+        setState(() => _isLoadingLocation = false);
+        return;
+      }
+
       final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      setState(() {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-        _isLoadingLocation = false;
-      });
-      _showSnackBar('Location captured successfully');
+      if (mounted) {
+        setState(() {
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          _isLoadingLocation = false;
+        });
+        AppSnackbar.showSuccess(context, 'Location captured successfully');
+      }
     } catch (e) {
-      setState(() => _isLoadingLocation = false);
-      _showSnackBar('Failed to get location', isError: true);
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+        AppSnackbar.showError(context, e);
+      }
     }
   }
 
@@ -93,20 +104,10 @@ class _LogActivityPageState extends State<LogActivityPage> {
     }
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : const Color(0xFF059669),
-      ),
-    );
-  }
-
   void _submitActivity() {
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null) {
-      _showSnackBar('Please wait for GPS location', isError: true);
+      AppSnackbar.showError(context, 'Please wait for GPS location before submitting.');
       return;
     }
 
@@ -144,10 +145,10 @@ class _LogActivityPageState extends State<LogActivityPage> {
       body: BlocListener<SalesPersonnelBloc, SalesPersonnelState>(
         listener: (context, state) {
           if (state is ActivityLogged) {
-            _showSnackBar('Activity logged successfully!');
+            AppSnackbar.showSuccess(context, 'Activity logged successfully!');
             Navigator.pop(context);
           } else if (state is SalesPersonnelError) {
-            _showSnackBar(state.message, isError: true);
+            AppSnackbar.showError(context, state.message);
           }
         },
         child: SingleChildScrollView(

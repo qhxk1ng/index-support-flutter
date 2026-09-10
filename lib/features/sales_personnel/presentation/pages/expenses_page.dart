@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/widgets/app_error_view.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
 import '../bloc/sales_personnel_bloc.dart';
 import '../bloc/sales_personnel_event.dart';
@@ -146,17 +148,13 @@ class _RecordExpenseFormState extends State<_RecordExpenseForm> {
     return BlocListener<SalesPersonnelBloc, SalesPersonnelState>(
       listener: (context, state) {
         if (state is ExpenseRecorded) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Expense recorded!'), backgroundColor: Color(0xFFDC2626)),
-          );
+          AppSnackbar.showSuccess(context, 'Expense recorded successfully!');
           _amountController.clear();
           _descriptionController.clear();
           setState(() => _receiptImages.clear());
           widget.onSuccess();
         } else if (state is SalesPersonnelError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, state.message);
         }
       },
       child: SingleChildScrollView(
@@ -302,6 +300,17 @@ class _ExpensesList extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: state.expenses.length,
               itemBuilder: (context, index) => _buildExpenseCard(state.expenses[index]),
+            ),
+          );
+        }
+        if (state is SalesPersonnelError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: AppErrorView(
+                error: state.message,
+                onRetry: () => context.read<SalesPersonnelBloc>().add(const LoadExpensesEvent()),
+              ),
             ),
           );
         }

@@ -11,6 +11,9 @@ class CustomButton extends StatelessWidget {
   final IconData? icon;
   final double? width;
   final double height;
+  final Gradient? gradient;
+  final List<BoxShadow>? boxShadow;
+  final BorderRadius? borderRadius;
 
   const CustomButton({
     super.key,
@@ -23,15 +26,17 @@ class CustomButton extends StatelessWidget {
     this.icon,
     this.width,
     this.height = 54,
+    this.gradient,
+    this.boxShadow,
+    this.borderRadius,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
-    final effectiveBgColor = backgroundColor ?? theme.primaryColor;
+    final effectiveBgColor = backgroundColor ?? AppColors.primary;
     final effectiveTextColor = textColor ?? Colors.white;
+    final radius = borderRadius ?? BorderRadius.circular(16);
+    final isInteractive = !isLoading && onPressed != null;
 
     if (isOutlined) {
       return SizedBox(
@@ -42,10 +47,50 @@ class CustomButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: BorderSide(color: effectiveBgColor, width: 2),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: radius,
             ),
           ),
           child: _buildChild(effectiveBgColor),
+        ),
+      );
+    }
+
+    final effectiveGradient = gradient ??
+        (backgroundColor != null
+            ? null
+            : const LinearGradient(
+                colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ));
+
+    if (effectiveGradient != null) {
+      return Container(
+        width: width ?? double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          gradient: isInteractive ? effectiveGradient : null,
+          color: isInteractive ? null : effectiveBgColor.withOpacity(0.5),
+          borderRadius: radius,
+          boxShadow: isInteractive
+              ? (boxShadow ?? [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withOpacity(0.32),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ])
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isInteractive ? onPressed : null,
+            borderRadius: radius,
+            child: Center(
+              child: _buildChild(effectiveTextColor),
+            ),
+          ),
         ),
       );
     }
@@ -61,7 +106,7 @@ class CustomButton extends StatelessWidget {
           disabledBackgroundColor: effectiveBgColor.withOpacity(0.6),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: radius,
           ),
         ),
         child: _buildChild(effectiveTextColor),

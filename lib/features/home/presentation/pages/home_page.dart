@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/app_navigator.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../customer/presentation/bloc/customer_bloc.dart';
 import '../../../customer/presentation/pages/customer_dashboard_page.dart';
 import '../../../installer/presentation/pages/installer_home_page.dart';
 import '../../../field_personnel/presentation/pages/field_personnel_home_page.dart';
@@ -16,7 +18,22 @@ class HomePage extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (previous, current) => current is AuthUnauthenticated,
+      listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          AppNavigator.navigateToLogin();
+        }
+      },
+      buildWhen: (previous, current) {
+        if (previous is! AuthAuthenticated && current is AuthAuthenticated) return true;
+        if (previous is AuthAuthenticated && current is AuthAuthenticated) {
+          // Rebuild dashboard only if activeRole or user ID actually changed
+          return previous.user.activeRole != current.user.activeRole ||
+                 previous.user.id != current.user.id;
+        }
+        return false;
+      },
       builder: (context, state) {
         if (state is AuthAuthenticated) {
           final activeRole = state.user.activeRole;
@@ -25,7 +42,10 @@ class HomePage extends StatelessWidget {
             case UserRole.admin:
               return const AdminDashboardPage();
             case UserRole.customer:
-              return const CustomerDashboardPage();
+              return BlocProvider(
+                create: (_) => sl<CustomerBloc>(),
+                child: const CustomerDashboardPage(),
+              );
             case UserRole.installer:
               return const InstallerHomePage();
             case UserRole.fieldPersonnel:
@@ -40,6 +60,12 @@ class HomePage extends StatelessWidget {
           }
         }
         
+        if (state is AuthUnauthenticated) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            AppNavigator.navigateToLogin();
+          });
+        }
+
         return const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),

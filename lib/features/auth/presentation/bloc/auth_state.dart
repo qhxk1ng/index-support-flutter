@@ -52,20 +52,44 @@ class OtpVerified extends AuthState {}
 
 class PasswordSet extends AuthState {}
 
-class ProfileUpdated extends AuthState {
-  final UserEntity user;
-  
-  const ProfileUpdated({required this.user});
-  
-  @override
-  List<Object> get props => [user];
+class ProfileUpdated extends AuthAuthenticated {
+  const ProfileUpdated({required super.user});
 }
 
-class RoleAdded extends AuthState {}
+class RoleAdded extends AuthAuthenticated {
+  const RoleAdded({required super.user});
+}
 
-class PasswordChanged extends AuthState {}
+class PasswordChanged extends AuthAuthenticated {
+  const PasswordChanged({required super.user});
+}
 
 class AccountDeleted extends AuthState {}
+
+class RoleUpgradeRequested extends AuthAuthenticated {
+  final String message;
+  const RoleUpgradeRequested({required super.user, required this.message});
+  @override
+  List<Object> get props => [user, message];
+}
+
+class RoleUpgradeRequestsLoaded extends AuthAuthenticated {
+  final List<Map<String, dynamic>> requests;
+  const RoleUpgradeRequestsLoaded({required super.user, required this.requests});
+  @override
+  List<Object> get props => [user, requests];
+}
+
+class AuthActionLoading extends AuthAuthenticated {
+  const AuthActionLoading({required super.user});
+}
+
+class AuthActionError extends AuthAuthenticated {
+  final String message;
+  const AuthActionError({required super.user, required this.message});
+  @override
+  List<Object> get props => [user, message];
+}
 
 class AuthError extends AuthState {
   final String message;

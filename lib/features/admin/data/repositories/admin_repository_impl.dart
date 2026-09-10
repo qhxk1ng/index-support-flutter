@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/exceptions.dart';
+import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failures.dart';
 import '../../../customer/data/models/warranty_model.dart';
 import '../../domain/entities/admin_entities.dart';
@@ -16,12 +16,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getDashboardStats();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -30,12 +26,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getAllComplaints();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -44,12 +36,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getAllCustomers(search: search);
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -68,14 +56,8 @@ class AdminRepositoryImpl implements AdminRepository {
         password: password,
       );
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -84,12 +66,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getAllFieldPersonnel();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -98,12 +76,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getAllInstallers(search: search);
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -122,14 +96,8 @@ class AdminRepositoryImpl implements AdminRepository {
         password: password,
       );
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -138,12 +106,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       final result = await remoteDataSource.getPendingWarranties();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -152,12 +116,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       await remoteDataSource.approveWarranty(warrantyId: warrantyId);
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -169,12 +129,8 @@ class AdminRepositoryImpl implements AdminRepository {
     try {
       await remoteDataSource.rejectWarranty(warrantyId: warrantyId, reason: reason);
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -189,12 +145,8 @@ class AdminRepositoryImpl implements AdminRepository {
         technicianId: technicianId,
       );
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -209,12 +161,8 @@ class AdminRepositoryImpl implements AdminRepository {
         reason: reason,
       );
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 }

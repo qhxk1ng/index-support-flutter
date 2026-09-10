@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/domain/entities/user_entity.dart';
 import '../../features/customer/presentation/pages/account_settings_page.dart';
+import '../../features/customer/presentation/pages/role_upgrade_page.dart';
+import 'role_switcher_modal.dart';
 
 class AppSidebar extends StatelessWidget {
   final UserEntity? user;
@@ -51,6 +53,36 @@ class AppSidebar extends StatelessWidget {
                     
                     const Divider(color: Colors.white24, height: 32, thickness: 1),
                     
+                    // Switch Role (for multi-role users)
+                    if (user != null && user!.roles.length > 1)
+                      _buildMenuItem(
+                        context,
+                        SidebarMenuItem(
+                          icon: Icons.swap_horiz_rounded,
+                          title: 'Switch Role',
+                          onTap: () {
+                            onClose();
+                            RoleSwitcherModal.show(context, user!);
+                          },
+                        ),
+                      ),
+
+                    // Account Upgrade
+                    _buildMenuItem(
+                      context,
+                      SidebarMenuItem(
+                        icon: Icons.upgrade_rounded,
+                        title: 'Account Upgrade',
+                        onTap: () {
+                          onClose();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const RoleUpgradePage()),
+                          );
+                        },
+                      ),
+                    ),
+
                     // Account Settings
                     _buildMenuItem(
                       context,

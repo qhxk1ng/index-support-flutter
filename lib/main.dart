@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'core/di/injection_container.dart' as di;
+import 'core/navigation/app_navigator.dart';
 import 'core/services/background_location_service.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/theme/app_theme.dart';
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
         child: Consumer<ThemeProvider>(
           builder: (context, themeProvider, _) {
             return MaterialApp(
+              navigatorKey: AppNavigator.key,
               title: 'Index Care',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
@@ -58,19 +60,45 @@ class MyApp extends StatelessWidget {
                 '/login': (context) => const LoginPage(),
               },
               home: PermissionsOnboardingPage(
-                child: BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    if (state is AuthLoading || state is AuthInitial) {
-                      return const Scaffold(
-                        body: Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
+                child: BlocConsumer<AuthBloc, AuthState>(
+                  listenWhen: (previous, current) {
+                    // Navigate only on real auth state transitions
+                    return (previous is AuthAuthenticated && current is AuthUnauthenticated) ||
+                           (previous is! AuthAuthenticated && current is AuthAuthenticated);
+                  },
+                  listener: (context, state) {
+                    if (state is AuthUnauthenticated) {
+                      AppNavigator.navigateToLogin();
                     } else if (state is AuthAuthenticated) {
+                      AppNavigator.navigateToHome();
+                    }
+                  },
+                  buildWhen: (previous, current) {
+                    // Only rebuild root widget if auth status fundamentally changes
+                    // Never rebuild or unmount active screens on transient action loading/errors!
+                    if (previous is AuthInitial) return true;
+                    if (previous is! AuthAuthenticated && current is AuthAuthenticated) return true;
+                    if (previous is AuthAuthenticated && current is AuthUnauthenticated) return true;
+                    if (previous is AuthLoading &&
+                        (current is AuthAuthenticated ||
+                         current is AuthUnauthenticated ||
+                         current is AuthError)) {
+                      return true;
+                    }
+                    return false;
+                  },
+                  builder: (context, state) {
+                    if (state is AuthAuthenticated) {
                       return const HomePage();
-                    } else {
+                    } else if (state is AuthUnauthenticated || state is AuthError) {
                       return const LoginPage();
                     }
+                    // Show initial launch splash spinner while checking auth status
+                    return const Scaffold(
+                      body: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   },
                 ),
               ),

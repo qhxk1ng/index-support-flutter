@@ -12,6 +12,7 @@ import '../../data/models/warranty_model.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 
 class WarrantyRegistrationPage extends StatefulWidget {
   const WarrantyRegistrationPage({super.key});
@@ -183,9 +184,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
     } catch (e) {
       setState(() => _isUploading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -226,7 +225,7 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
               _qrController?.start();
             });
           }
-          _showError(state.message);
+          AppSnackbar.showError(context, state.message);
         }
       },
       child: Scaffold(

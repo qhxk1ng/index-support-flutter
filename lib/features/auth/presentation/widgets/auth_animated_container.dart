@@ -78,34 +78,47 @@ class _AuthAnimatedContainerState extends State<AuthAnimatedContainer>
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.06),
-          SlideTransition(
-            position: _logoSlide,
-            child: FadeTransition(
-              opacity: _logoFade,
-              child: widget.logo,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 32,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 2),
+                  SlideTransition(
+                    position: _logoSlide,
+                    child: FadeTransition(
+                      opacity: _logoFade,
+                      child: widget.logo,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SlideTransition(
+                    position: _formSlide,
+                    child: FadeTransition(
+                      opacity: _formFade,
+                      child: widget.form,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FadeTransition(
+                    opacity: _formFade,
+                    child: widget.bottomContent,
+                  ),
+                  const Spacer(flex: 3),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
-          SlideTransition(
-            position: _formSlide,
-            child: FadeTransition(
-              opacity: _formFade,
-              child: widget.form,
-            ),
-          ),
-          const SizedBox(height: 28),
-          FadeTransition(
-            opacity: _formFade,
-            child: widget.bottomContent,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

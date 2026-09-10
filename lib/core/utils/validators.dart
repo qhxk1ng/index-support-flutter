@@ -1,11 +1,18 @@
 class Validators {
-  static String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
+  static String? validatePhone(String? value, [String dialCode = '+91']) {
+    if (value == null || value.trim().isEmpty) {
       return 'Phone number is required';
     }
     
-    if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
-      return 'Please enter a valid 10-digit phone number';
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (dialCode == '+91') {
+      if (digits.length != 10) {
+        return 'Please enter a valid 10-digit phone number';
+      }
+    } else {
+      if (digits.length < 6 || digits.length > 15) {
+        return 'Please enter a valid phone number';
+      }
     }
     
     return null;

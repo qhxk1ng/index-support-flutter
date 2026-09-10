@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
+import '../../../../core/widgets/app_error_view.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../bloc/sales_personnel_bloc.dart';
 import '../bloc/sales_personnel_event.dart';
 import '../bloc/sales_personnel_state.dart';
@@ -124,9 +126,7 @@ class _AddLeadFormState extends State<_AddLeadForm> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Waiting for GPS location...'), backgroundColor: Colors.orange),
-      );
+      AppSnackbar.showError(context, 'Waiting for GPS location. Please ensure location is enabled.');
       return;
     }
 
@@ -149,9 +149,7 @@ class _AddLeadFormState extends State<_AddLeadForm> {
     return BlocListener<SalesPersonnelBloc, SalesPersonnelState>(
       listener: (context, state) {
         if (state is LeadCreated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lead created successfully!'), backgroundColor: Color(0xFF2563EB)),
-          );
+          AppSnackbar.showSuccess(context, 'Lead created successfully!');
           _customerNameController.clear();
           _businessNameController.clear();
           _phoneController.clear();
@@ -159,9 +157,7 @@ class _AddLeadFormState extends State<_AddLeadForm> {
           _notesController.clear();
           widget.onSuccess();
         } else if (state is SalesPersonnelError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, state.message);
         }
       },
       child: SingleChildScrollView(
@@ -341,6 +337,17 @@ class _LeadsList extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: state.leads.length,
               itemBuilder: (context, index) => _buildLeadCard(state.leads[index]),
+            ),
+          );
+        }
+        if (state is SalesPersonnelError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: AppErrorView(
+                error: state.message,
+                onRetry: () => context.read<SalesPersonnelBloc>().add(const LoadLeadsEvent()),
+              ),
             ),
           );
         }

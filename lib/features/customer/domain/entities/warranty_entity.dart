@@ -31,6 +31,7 @@ class WarrantyEntity extends Equatable {
   final DateTime updatedAt;
   final ProductEntity? product;
   final SerialNumberEntity? serialNumber;
+  final String? customerName;
 
   const WarrantyEntity({
     required this.id,
@@ -54,6 +55,7 @@ class WarrantyEntity extends Equatable {
     required this.updatedAt,
     this.product,
     this.serialNumber,
+    this.customerName,
   });
 
   bool get isApproved => status == WarrantyStatus.approved;
@@ -98,6 +100,7 @@ class WarrantyEntity extends Equatable {
         updatedAt,
         product,
         serialNumber,
+        customerName,
       ];
 }
 

@@ -5,6 +5,8 @@ import '../bloc/customer_bloc.dart';
 import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
 import '../../domain/entities/warranty_entity.dart';
+import '../../../../core/services/warranty_card_pdf_service.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class RegisteredProductsPage extends StatefulWidget {
   const RegisteredProductsPage({super.key});
@@ -421,6 +423,41 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                   ],
                 ),
               ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final authState = context.read<AuthBloc>().state;
+                  final customerName = authState is AuthAuthenticated
+                      ? authState.user.name
+                      : warranty.customerName;
+
+                  WarrantyCardPdfService.downloadOrPreview(
+                    context,
+                    warranty: warranty,
+                    customerName: customerName,
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: const Text(
+                  'Download Warranty Card',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2F5597),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
           ],
         ),
       ),

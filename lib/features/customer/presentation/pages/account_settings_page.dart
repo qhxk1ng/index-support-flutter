@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/account_deletion_helper.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/role_switcher_modal.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import 'role_upgrade_page.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -60,102 +64,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Text(message),
-          ],
-        ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    AppSnackbar.showSuccess(context, message);
   }
 
   void _showErrorDialog(String message) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Error',
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-      transitionBuilder: (ctx, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: FadeTransition(
-            opacity: anim1,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.error_outline_rounded,
-                      color: AppColors.error,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Update Failed',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text('OK',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    AppErrorDialog.show(context, message);
   }
 
   void _updateProfile() {
@@ -211,6 +124,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
             _confirmPasswordController.clear();
           } else if (state is AccountDeleted) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (state is AuthActionError) {
+            _showErrorDialog(state.message);
           } else if (state is AuthError) {
             _showErrorDialog(state.message);
           }
@@ -231,6 +146,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                 ),
                 const SizedBox(height: 16),
                 _buildProfileCard(),
+
+                const SizedBox(height: 28),
+
+                // Role & Account Upgrade Section
+                _buildSectionHeader(
+                  icon: Icons.badge_rounded,
+                  title: 'Account Role & Upgrade',
+                  color: const Color(0xFF0284C7),
+                ),
+                const SizedBox(height: 16),
+                _buildRoleUpgradeCard(),
 
                 const SizedBox(height: 28),
 
@@ -387,6 +313,97 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRoleUpgradeCard() {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is! AuthAuthenticated) return const SizedBox.shrink();
+        final user = state.user;
+        final hasMultipleRoles = user.roles.length > 1;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFF0284C7), size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Active Role',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          Text(
+                            (user.activeRole ?? 'CUSTOMER').replaceAll('_', ' '),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasMultipleRoles)
+                      TextButton.icon(
+                        onPressed: () => RoleSwitcherModal.show(context, user),
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                        label: const Text('Switch'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF0284C7),
+                          backgroundColor: const Color(0xFF0284C7).withOpacity(0.08),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: const Icon(Icons.upgrade_rounded, color: Color(0xFF10B981)),
+                title: const Text(
+                  'Request Role Upgrade',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: const Text(
+                  'Upgrade to Field Personnel, Sales Personnel, or Installer',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const RoleUpgradePage()),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -596,38 +613,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
     final phone = authState.user.phoneNumber;
-    final url = 'https://indexinformatics.in/account_deletion.php?phone=${Uri.encodeComponent(phone)}';
 
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'AccountDeletion',
-        onMessageReceived: (JavaScriptMessage message) {
-          if (message.message == 'deleted') {
-            Navigator.of(context).pop();
-            context.read<AuthBloc>().add(LogoutEvent());
-          }
-        },
-      )
-      ..loadRequest(Uri.parse(url));
-
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text('Delete Account'),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF1E293B),
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(height: 1, color: Colors.grey[200]),
-          ),
-        ),
-        body: WebViewWidget(controller: controller),
-      ),
-    ));
+    AccountDeletionHelper.openDeletionWebView(
+      context: context,
+      phoneNumber: phone,
+      onAccountDeleted: () {
+        context.read<AuthBloc>().add(LogoutEvent());
+      },
+    );
   }
 
   void _confirmDeleteAccount() {

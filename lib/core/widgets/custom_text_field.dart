@@ -18,6 +18,7 @@ class CustomTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final void Function(String)? onFieldSubmitted;
   final String? prefixText;
+  final TextStyle? prefixStyle;
   final FocusNode? focusNode;
 
   const CustomTextField({
@@ -38,6 +39,7 @@ class CustomTextField extends StatelessWidget {
     this.textInputAction,
     this.onFieldSubmitted,
     this.prefixText,
+    this.prefixStyle,
     this.focusNode,
   });
 
@@ -61,52 +63,65 @@ class CustomTextField extends StatelessWidget {
       style: TextStyle(
         fontSize: 15, 
         fontWeight: FontWeight.w500,
-        color: isDark ? Colors.white : const Color(0xFF1E293B),
+        color: isDark ? Colors.white : const Color(0xFF0F172A),
       ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         hintStyle: TextStyle(
-          color: isDark ? Colors.white38 : Colors.grey[400], 
-          fontSize: 14
+          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8), 
+          fontSize: 14,
         ),
         labelStyle: TextStyle(
-          color: isDark ? Colors.white54 : Colors.grey[500], 
-          fontSize: 14
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), 
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: Color(0xFF2563EB),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
         prefixIcon: prefixIcon,
         prefixText: prefixText,
+        prefixStyle: prefixStyle ?? TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
         suffixIcon: suffixIcon,
         counterText: '',
         filled: true,
-        fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: isDark ? const Color(0xFF334155) : Colors.grey[200]!
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1.2,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: isDark ? const Color(0xFF334155) : Colors.grey[200]!
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1.2,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor, 
-            width: 1.5
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(
+            color: Color(0xFF2563EB), 
+            width: 2.0,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.redAccent),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2.0),
         ),
       ),
     );

@@ -11,6 +11,7 @@ enum AppErrorType {
   wrongPassword,
   userNotFound,
   invalidCredentials,
+  passwordNotSet,
   accountInactive,
   accountLocked,
   phoneAlreadyExists,
@@ -20,6 +21,8 @@ enum AppErrorType {
   permissionDenied,
   sessionExpired,
   notFound,
+  locationDisabled,
+  locationPermissionDenied,
   unknown,
 }
 
@@ -59,6 +62,8 @@ class AppError {
         return Icons.person_off_rounded;
       case AppErrorType.invalidCredentials:
         return Icons.lock_outline_rounded;
+      case AppErrorType.passwordNotSet:
+        return Icons.key_off_rounded;
       case AppErrorType.accountInactive:
       case AppErrorType.accountLocked:
         return Icons.block_rounded;
@@ -75,6 +80,10 @@ class AppError {
         return Icons.schedule_rounded;
       case AppErrorType.notFound:
         return Icons.search_off_rounded;
+      case AppErrorType.locationDisabled:
+        return Icons.location_off_rounded;
+      case AppErrorType.locationPermissionDenied:
+        return Icons.location_disabled_rounded;
       case AppErrorType.unknown:
         return Icons.error_outline_rounded;
     }
@@ -89,8 +98,12 @@ class AppError {
       case AppErrorType.serverDown:
       case AppErrorType.mapServerDown:
         return AppColors.info;
+      case AppErrorType.locationDisabled:
+      case AppErrorType.locationPermissionDenied:
+        return AppColors.warning;
       case AppErrorType.wrongPassword:
       case AppErrorType.invalidCredentials:
+      case AppErrorType.passwordNotSet:
       case AppErrorType.userNotFound:
       case AppErrorType.accountInactive:
       case AppErrorType.accountLocked:
@@ -115,6 +128,7 @@ class AppError {
       case AppErrorType.timeout:
       case AppErrorType.serverDown:
       case AppErrorType.mapServerDown:
+      case AppErrorType.locationDisabled:
       case AppErrorType.unknown:
         return true;
       default:

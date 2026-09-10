@@ -23,6 +23,7 @@ class WarrantyModel extends WarrantyEntity {
     required super.updatedAt,
     super.product,
     super.serialNumber,
+    super.customerName,
   });
 
   factory WarrantyModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +53,7 @@ class WarrantyModel extends WarrantyEntity {
       serialNumber: json['serialNumber'] != null
           ? SerialNumberModel.fromJson(json['serialNumber'] as Map<String, dynamic>)
           : null,
+      customerName: json['customer']?['user']?['name'] as String? ?? json['customerName'] as String?,
     );
   }
 

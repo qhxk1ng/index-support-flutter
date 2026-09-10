@@ -3,11 +3,13 @@ import '../theme/app_colors.dart';
 
 class ErrorDisplayWidget extends StatelessWidget {
   final String message;
+  final String? title;
   final VoidCallback? onRetry;
   
   const ErrorDisplayWidget({
     super.key,
     required this.message,
+    this.title,
     this.onRetry,
   });
   
@@ -26,7 +28,7 @@ class ErrorDisplayWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Oops! Something went wrong',
+              title ?? 'Unable to Load Data',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,

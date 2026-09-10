@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/exceptions.dart';
+import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/storage_service.dart';
 import '../../domain/entities/auth_response_entity.dart';
@@ -17,27 +17,6 @@ class AuthRepositoryImpl implements AuthRepository {
     required this.storageService,
   });
 
-  String _sanitizeErrorMessage(dynamic error) {
-    final msg = error.toString();
-    final lower = msg.toLowerCase();
-    if (lower.contains('socketexception') ||
-        lower.contains('connection refused') ||
-        lower.contains('handshakeexception')) {
-      return 'No internet connection. Please check your network.';
-    }
-    if (lower.contains('timeout')) {
-      return 'Connection timed out. Please check your internet.';
-    }
-    if (lower.contains('dioexception') ||
-        lower.contains('errno') ||
-        lower.contains('type \'') ||
-        lower.contains('unexpected character')) {
-      return 'Something went wrong. Please try again.';
-    }
-    // Preserve readable error messages from the backend
-    return msg.isNotEmpty ? msg : 'An unexpected error occurred. Please try again.';
-  }
-  
   @override
   Future<Either<Failure, Map<String, dynamic>>> register({
     required String phoneNumber,
@@ -59,14 +38,8 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
       );
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -75,12 +48,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final result = await remoteDataSource.sendOtp(phoneNumber, type);
       return Right(result['userId'] as String);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -93,14 +62,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await remoteDataSource.verifyOtp(userId: userId, otp: otp, type: type);
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -112,14 +75,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await remoteDataSource.setPassword(userId: userId, password: password);
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -142,14 +99,8 @@ class AuthRepositoryImpl implements AuthRepository {
       await storageService.setLoggedIn(true);
       
       return Right(result.toEntity());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -170,14 +121,8 @@ class AuthRepositoryImpl implements AuthRepository {
       await storageService.setLoggedIn(true);
       
       return Right(result.toEntity());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -187,14 +132,8 @@ class AuthRepositoryImpl implements AuthRepository {
       final result = await remoteDataSource.getProfile();
       await storageService.saveUserData(result.toJson());
       return Right(result.toEntity());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -210,14 +149,8 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       await storageService.saveUserData(result.toJson());
       return Right(result.toEntity());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -227,12 +160,8 @@ class AuthRepositoryImpl implements AuthRepository {
       await remoteDataSource.switchRole(role);
       await storageService.saveActiveRole(role);
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
@@ -251,28 +180,21 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
       );
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
   
   @override
   Future<Either<Failure, void>> logout() async {
     try {
-      await remoteDataSource.logout();
+      await remoteDataSource.logout().timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Network failure or timeout during server logout should not prevent local logout
+    } finally {
       await storageService.clearAll();
-      return const Right(null);
-    } on ServerException catch (e) {
-      await storageService.clearAll();
-      return const Right(null);
-    } catch (e) {
-      await storageService.clearAll();
-      return const Right(null);
     }
+    return const Right(null);
   }
   
   @override
@@ -286,16 +208,8 @@ class AuthRepositoryImpl implements AuthRepository {
         newPassword: newPassword,
       );
       return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -305,15 +219,9 @@ class AuthRepositoryImpl implements AuthRepository {
       await remoteDataSource.deleteAccount();
       await storageService.clearAll();
       return const Right(null);
-    } on ServerException catch (e) {
-      await storageService.clearAll();
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      await storageService.clearAll();
-      return Left(NetworkFailure(e.message));
     } catch (e) {
       await storageService.clearAll();
-      return Left(ServerFailure(_sanitizeErrorMessage(e)));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -325,5 +233,31 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<String?> getActiveRole() async {
     return await storageService.getActiveRole();
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> requestRoleUpgrade({
+    required String requestedRole,
+    String? reason,
+  }) async {
+    try {
+      final result = await remoteDataSource.requestRoleUpgrade(
+        requestedRole: requestedRole,
+        reason: reason,
+      );
+      return Right(result);
+    } catch (e) {
+      return Left(mapExceptionToFailure(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> getMyUpgradeRequests() async {
+    try {
+      final result = await remoteDataSource.getMyUpgradeRequests();
+      return Right(result);
+    } catch (e) {
+      return Left(mapExceptionToFailure(e));
+    }
   }
 }

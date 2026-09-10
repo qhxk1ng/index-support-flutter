@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/sales_personnel_entities.dart';
@@ -30,7 +31,7 @@ class SalesPersonnelRepository {
         return Right(urls);
       } catch (e) {
         if (attempt >= maxAttempts) {
-          return Left(ServerFailure(e.toString()));
+          return Left(mapExceptionToFailure(e));
         }
         await Future.delayed(Duration(milliseconds: 400 * attempt));
       }
@@ -42,7 +43,7 @@ class SalesPersonnelRepository {
       final response = await apiClient.get('/sales-personnel/profile');
       return Right(SalesPersonnelProfileModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -74,7 +75,7 @@ class SalesPersonnelRepository {
       );
       return Right(SalesActivityModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -89,7 +90,7 @@ class SalesPersonnelRepository {
       );
       return Right(SalesActivityModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -118,7 +119,7 @@ class SalesPersonnelRepository {
           .toList();
       return Right(activities);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -150,7 +151,7 @@ class SalesPersonnelRepository {
       );
       return Right(SalesLeadModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -173,7 +174,7 @@ class SalesPersonnelRepository {
           .toList();
       return Right(leads);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -197,7 +198,7 @@ class SalesPersonnelRepository {
       );
       return Right(SalesExpenseModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -226,7 +227,7 @@ class SalesPersonnelRepository {
           .toList();
       return Right(expenses);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -235,7 +236,7 @@ class SalesPersonnelRepository {
       final response = await apiClient.get('/sales-personnel/dashboard/stats');
       return Right(SalesPersonnelStatsModel.fromJson(response.data['data']));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 }

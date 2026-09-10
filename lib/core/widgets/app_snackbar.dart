@@ -14,6 +14,7 @@ class AppSnackbar {
   static void showError(
     BuildContext context,
     Object error, {
+    String? title,
     bool isMapRequest = false,
     Duration duration = const Duration(seconds: 4),
     SnackBarAction? action,
@@ -23,7 +24,7 @@ class AppSnackbar {
     _show(
       context,
       icon: mapped.icon,
-      title: mapped.title,
+      title: title ?? mapped.title,
       message: mapped.message,
       background: mapped.accentColor,
       duration: duration,

@@ -10,13 +10,11 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/services/background_location_service.dart';
 import '../../../../core/services/background_location_disclosure.dart';
 import '../../../../core/services/location_tracking_service.dart';
+import '../../../../core/widgets/app_error_dialog.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:dio/dio.dart';
-import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'dart:io';
 import 'work_management_page.dart';
 import 'route_plan_page.dart';
 import '../../../customer/presentation/pages/account_settings_page.dart';
@@ -83,7 +81,10 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       }
     } catch (e) {
       debugPrint('Error loading stats: $e');
-      if (mounted) setState(() => _isLoadingStats = false);
+      if (mounted) {
+        setState(() => _isLoadingStats = false);
+        AppSnackbar.showError(context, e);
+      }
     }
   }
 
@@ -261,17 +262,13 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       final apiClient = sl<ApiClient>();
       await apiClient.post('/complaints/$complaintId/accept');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Job accepted!'), backgroundColor: Color(0xFF10B981)),
-        );
+        AppSnackbar.showSuccess(context, 'Job accepted successfully!');
       }
       _loadStats();
       _pollPendingJobs();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept: $e'), backgroundColor: Colors.red),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -311,16 +308,12 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
       }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Journey started! Navigating...'), backgroundColor: Color(0xFF10B981)),
-        );
+        AppSnackbar.showSuccess(context, 'Journey started! Navigating...');
       }
       _loadStats();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -373,17 +366,13 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
         final apiClient = sl<ApiClient>();
         await apiClient.post('/complaints/${ticket['id']}/end-journey');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Journey ended'), backgroundColor: Color(0xFF10B981)),
-          );
+          AppSnackbar.showSuccess(context, 'Journey ended');
         }
         await _loadStats();
         await _maybeStopLocationTracking();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
+          AppSnackbar.showError(context, e);
         }
       }
     }
@@ -519,18 +508,14 @@ class _FieldPersonnelDashboardPageState extends State<FieldPersonnelDashboardPag
 
                   if (mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Task completed!'), backgroundColor: Color(0xFF10B981)),
-                    );
+                    AppSnackbar.showSuccess(context, 'Task completed successfully!');
                     await _loadStats();
                     await _maybeStopLocationTracking();
                   }
                 } catch (e) {
                   setDialogState(() => isUploading = false);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                    );
+                    AppSnackbar.showError(context, e);
                   }
                 }
               },

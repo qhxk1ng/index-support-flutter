@@ -53,7 +53,14 @@ abstract class AuthRepository {
     required double longitude,
     required String address,
   });
-  
+
+  Future<Either<Failure, Map<String, dynamic>>> requestRoleUpgrade({
+    required String requestedRole,
+    String? reason,
+  });
+
+  Future<Either<Failure, List<Map<String, dynamic>>>> getMyUpgradeRequests();
+
   Future<Either<Failure, void>> logout();
 
   Future<Either<Failure, void>> changePassword({

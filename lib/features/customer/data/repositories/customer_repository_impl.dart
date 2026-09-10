@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/exceptions.dart';
+import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/complaint_entity.dart';
 import '../../domain/entities/warranty_entity.dart';
@@ -29,14 +29,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
         images: images,
       );
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -45,12 +39,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final result = await remoteDataSource.getComplaints();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -59,12 +49,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final result = await remoteDataSource.getComplaintDetails(id);
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -73,14 +59,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final result = await remoteDataSource.validateSerial(serialNumber);
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -101,14 +81,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
         invoiceUrl: invoiceUrl,
       );
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -117,12 +91,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final result = await remoteDataSource.getWarranties();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -131,12 +101,8 @@ class CustomerRepositoryImpl implements CustomerRepository {
     try {
       final result = await remoteDataSource.getProducts();
       return Right(result);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 }

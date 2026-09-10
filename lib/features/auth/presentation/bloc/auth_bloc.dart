@@ -5,7 +5,9 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/background_location_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
+import '../../../../core/utils/storage_service.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../data/models/user_model.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -14,6 +16,9 @@ part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
+  UserEntity? _currentUser;
+
+  UserEntity? get currentUser => _currentUser;
   
   AuthBloc({required this.authRepository}) : super(AuthInitial()) {
     on<CheckAuthStatusEvent>(_onCheckAuthStatus);
@@ -27,6 +32,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<UpdateProfileEvent>(_onUpdateProfile);
     on<SwitchRoleEvent>(_onSwitchRole);
     on<AddRoleEvent>(_onAddRole);
+    on<RequestRoleUpgradeEvent>(_onRequestRoleUpgrade);
+    on<GetMyRoleUpgradeRequestsEvent>(_onGetMyRoleUpgradeRequests);
     on<LogoutEvent>(_onLogout);
     on<ChangePasswordEvent>(_onChangePassword);
     on<DeleteAccountEvent>(_onDeleteAccount);
@@ -39,7 +46,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     
     try {
-      // isLoggedIn is just a SharedPreferences read — keep it quick.
       final isLoggedIn = await authRepository.isLoggedIn()
           .timeout(const Duration(seconds: 2), onTimeout: () {
         debugPrint('AuthBloc: isLoggedIn timed out');
@@ -47,23 +53,47 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       });
       
       if (isLoggedIn) {
-        // getProfile is a network call — 6s is enough for a slow connection.
         final result = await authRepository.getProfile()
             .timeout(const Duration(seconds: 6), onTimeout: () {
           debugPrint('AuthBloc: getProfile timed out');
-          return Left<Failure, UserEntity>(const ServerFailure('Request timed out'));
+          return Left<Failure, UserEntity>(const NetworkFailure('Connection timed out'));
         });
-        result.fold(
-          (failure) => emit(AuthUnauthenticated()),
-          (user) => emit(AuthAuthenticated(user: user)),
+        
+        await result.fold(
+          (failure) async {
+            if (failure is UnauthorizedFailure) {
+              // Token is invalid / expired -> sign out
+              _currentUser = null;
+              emit(AuthUnauthenticated());
+            } else {
+              // Network error or server temporary issue -> fallback to cached user data
+              final storageService = sl<StorageService>();
+              final cachedData = await storageService.getUserData();
+              if (cachedData != null) {
+                try {
+                  final userModel = UserModel.fromJson(cachedData);
+                  final userEntity = userModel.toEntity();
+                  _currentUser = userEntity;
+                  emit(AuthAuthenticated(user: userEntity));
+                  return;
+                } catch (_) {}
+              }
+              _currentUser = null;
+              emit(AuthUnauthenticated());
+            }
+          },
+          (user) async {
+            _currentUser = user;
+            emit(AuthAuthenticated(user: user));
+          },
         );
       } else {
+        _currentUser = null;
         emit(AuthUnauthenticated());
       }
     } catch (e) {
-      // Safety net: if anything unexpected fails, go to login screen
-      // instead of staying stuck on loading forever
       debugPrint('AuthBloc _onCheckAuthStatus error: $e');
+      _currentUser = null;
       emit(AuthUnauthenticated());
     }
   }
@@ -148,16 +178,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     
-    final result = await authRepository.login(
-      phoneNumber: event.phoneNumber,
-      otp: event.otp,
-      password: event.password,
-    );
-    
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (authResponse) => emit(AuthAuthenticated(user: authResponse.user)),
-    );
+    try {
+      final result = await authRepository.login(
+        phoneNumber: event.phoneNumber,
+        otp: event.otp,
+        password: event.password,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          return const Left(NetworkFailure('Connection timed out. Please check your internet connection.'));
+        },
+      );
+      
+      result.fold(
+        (failure) => emit(AuthError(message: failure.message)),
+        (authResponse) {
+          _currentUser = authResponse.user;
+          emit(AuthAuthenticated(user: authResponse.user));
+        },
+      );
+    } catch (e) {
+      emit(const AuthError(message: 'Login failed. Please try again.'));
+    }
   }
   
   Future<void> _onAdminLogin(
@@ -166,28 +208,53 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     
-    final result = await authRepository.adminLogin(
-      phoneNumber: event.phoneNumber,
-      password: event.password,
-    );
-    
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (authResponse) => emit(AuthAuthenticated(user: authResponse.user)),
-    );
+    try {
+      final result = await authRepository.adminLogin(
+        phoneNumber: event.phoneNumber,
+        password: event.password,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          return const Left(NetworkFailure('Connection timed out. Please check your internet connection.'));
+        },
+      );
+      
+      result.fold(
+        (failure) => emit(AuthError(message: failure.message)),
+        (authResponse) {
+          _currentUser = authResponse.user;
+          emit(AuthAuthenticated(user: authResponse.user));
+        },
+      );
+    } catch (e) {
+      emit(const AuthError(message: 'Admin login failed. Please try again.'));
+    }
   }
   
   Future<void> _onGetProfile(
     GetProfileEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
     
     final result = await authRepository.getProfile();
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(AuthAuthenticated(user: user)),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (user) {
+        _currentUser = user;
+        emit(AuthAuthenticated(user: user));
+      },
     );
   }
   
@@ -195,7 +262,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UpdateProfileEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
     
     final result = await authRepository.updateProfile(
       name: event.name,
@@ -203,8 +274,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(ProfileUpdated(user: user)),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (user) {
+        _currentUser = user;
+        emit(ProfileUpdated(user: user));
+      },
     );
   }
   
@@ -212,12 +292,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SwitchRoleEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
     
     final result = await authRepository.switchRole(event.role);
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
       (_) {
         add(GetProfileEvent());
       },
@@ -228,7 +318,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AddRoleEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
     
     final result = await authRepository.addRole(
       role: event.role,
@@ -238,8 +332,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(RoleAdded()),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (_) {
+        if (_currentUser != null) {
+          emit(RoleAdded(user: _currentUser!));
+        } else {
+          emit(const AuthError(message: 'User session not found.'));
+        }
+      },
     );
   }
   
@@ -247,7 +353,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     ChangePasswordEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
     
     final result = await authRepository.changePassword(
       currentPassword: event.currentPassword,
@@ -255,8 +365,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(PasswordChanged()),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (_) {
+        if (_currentUser != null) {
+          emit(PasswordChanged(user: _currentUser!));
+        } else {
+          emit(const AuthError(message: 'User session not found.'));
+        }
+      },
     );
   }
   
@@ -264,7 +386,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     DeleteAccountEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
 
     final locationService = sl<LocationTrackingService>();
     locationService.stopTracking();
@@ -273,8 +399,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final result = await authRepository.deleteAccount();
 
     await result.fold(
-      (failure) async => emit(AuthError(message: failure.message)),
+      (failure) async {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
       (_) async {
+        _currentUser = null;
         emit(AccountDeleted());
       },
     );
@@ -287,15 +420,104 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     // Stop location tracking first to mark user offline
-    final locationService = sl<LocationTrackingService>();
-    locationService.stopTracking();
-    await BackgroundLocationService.stop();
+    try {
+      final locationService = sl<LocationTrackingService>();
+      locationService.stopTracking();
+    } catch (e) {
+      debugPrint('Location tracking stop error: $e');
+    }
 
-    final result = await authRepository.logout();
+    try {
+      await BackgroundLocationService.stop().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          debugPrint('BackgroundLocationService.stop timed out');
+        },
+      );
+    } catch (e) {
+      debugPrint('Background location stop error: $e');
+    }
+
+    try {
+      await authRepository.logout().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('authRepository.logout timed out');
+          return const Right(null);
+        },
+      );
+    } catch (e) {
+      debugPrint('authRepository.logout error: $e');
+    }
+
+    // Always guarantee transition to AuthUnauthenticated
+    _currentUser = null;
+    emit(AuthUnauthenticated());
+  }
+
+  Future<void> _onRequestRoleUpgrade(
+    RequestRoleUpgradeEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
+
+    final result = await authRepository.requestRoleUpgrade(
+      requestedRole: event.requestedRole,
+      reason: event.reason,
+    );
 
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(AuthUnauthenticated()),
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (data) {
+        if (_currentUser != null) {
+          emit(RoleUpgradeRequested(
+            user: _currentUser!,
+            message: data['message']?.toString() ?? 'Role upgrade requested successfully',
+          ));
+        } else {
+          emit(const AuthError(message: 'User session not found.'));
+        }
+      },
+    );
+  }
+
+  Future<void> _onGetMyRoleUpgradeRequests(
+    GetMyRoleUpgradeRequestsEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (_currentUser != null) {
+      emit(AuthActionLoading(user: _currentUser!));
+    } else {
+      emit(AuthLoading());
+    }
+
+    final result = await authRepository.getMyUpgradeRequests();
+
+    result.fold(
+      (failure) {
+        if (_currentUser != null) {
+          emit(AuthActionError(user: _currentUser!, message: failure.message));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
+      (requests) {
+        if (_currentUser != null) {
+          emit(RoleUpgradeRequestsLoaded(user: _currentUser!, requests: requests));
+        } else {
+          emit(const AuthError(message: 'User session not found.'));
+        }
+      },
     );
   }
 }

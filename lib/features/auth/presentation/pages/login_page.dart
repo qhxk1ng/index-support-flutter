@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/account_deletion_helper.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_error_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -114,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthAuthenticated) {
-              Navigator.pushReplacementNamed(context, '/home');
+              Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
             } else if (state is AuthError) {
               AppErrorDialog.show(
                 context,
@@ -143,45 +144,53 @@ class _LoginPageState extends State<LoginPage> {
     return Column(
       children: [
         Container(
-          width: 90,
-          height: 90,
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2563EB).withOpacity(0.3),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            shape: BoxShape.circle,
+            color: (isDark ? const Color(0xFF2563EB) : const Color(0xFF3B82F6))
+                .withOpacity(0.08),
           ),
-          child: const Icon(
-            Icons.support_agent_rounded,
-            size: 44,
-            color: Colors.white,
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2563EB).withOpacity(0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.support_agent_rounded,
+              size: 42,
+              color: Colors.white,
+            ),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         Text(
           'Welcome Back',
           style: TextStyle(
-            fontSize: 30,
+            fontSize: 28,
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           'Sign in to continue to Index Care',
           style: TextStyle(
-            fontSize: 15,
-            color: isDark ? Colors.white54 : Colors.grey[500],
+            fontSize: 14,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -191,19 +200,24 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildFormSection(bool isDark, bool isLoading) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white,
+        color: isDark ? const Color(0xFF1E293B).withOpacity(0.85) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? Colors.white10 : Colors.white,
-          width: 1,
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
-            blurRadius: 30,
+            color: const Color(0xFF0F172A).withOpacity(isDark ? 0.35 : 0.06),
+            blurRadius: 28,
             offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: const Color(0xFF2563EB).withOpacity(isDark ? 0.06 : 0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -241,9 +255,10 @@ class _LoginPageState extends State<LoginPage> {
               prefixIcon: const Icon(Icons.lock_rounded, size: 20, color: Color(0xFF2563EB)),
               obscureText: _obscurePassword,
               suffixIcon: IconButton(
+                splashRadius: 20,
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  color: isDark ? Colors.white38 : Colors.grey[400],
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8),
                   size: 20,
                 ),
                 onPressed: () {
@@ -262,10 +277,10 @@ class _LoginPageState extends State<LoginPage> {
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _handleLogin(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Align(
               alignment: Alignment.centerRight,
-              child: GestureDetector(
+              child: InkWell(
                 onTap: isLoading
                     ? null
                     : () {
@@ -276,17 +291,21 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         );
                       },
-                child: const Text(
-                  'Forgot Password?',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF2563EB),
-                    fontWeight: FontWeight.w600,
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF2563EB),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             CustomButton(
               text: 'Sign In',
               icon: Icons.login_rounded,
@@ -300,6 +319,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildBottomLinks(bool isLoading) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         Row(
@@ -309,8 +330,8 @@ class _LoginPageState extends State<LoginPage> {
               "Don't have an account? ",
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).brightness == Brightness.dark 
-                    ? Colors.white54 : Colors.grey[500],
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
               ),
             ),
             GestureDetector(
@@ -333,7 +354,48 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: isLoading
+              ? null
+              : () {
+                  AccountDeletionHelper.openDeletionWebView(
+                    context: context,
+                    phoneNumber: _phoneController.text.trim(),
+                  );
+                },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.shield_outlined,
+                  size: 13,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Account Deletion & Privacy',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

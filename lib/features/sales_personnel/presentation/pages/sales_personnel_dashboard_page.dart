@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/services/background_location_service.dart';
 import '../../../../core/services/background_location_disclosure.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/sidebar_wrapper.dart';
 import '../../../../core/widgets/app_sidebar.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
@@ -26,22 +26,30 @@ class SalesPersonnelDashboardPage extends StatefulWidget {
 class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPage>
     with SingleTickerProviderStateMixin {
   final GlobalKey<SidebarWrapperState> _sidebarKey = GlobalKey<SidebarWrapperState>();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  AnimationController? _animationController;
+  Animation<double>? _fadeAnimation;
+  Animation<Offset>? _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _startLocationTracking());
-    _animationController = AnimationController(
+    _initAnimations();
+    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
+  }
+
+  void _initAnimations() {
+    if (_animationController != null) return;
+    final controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
+    _animationController = controller;
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animationController,
+        parent: controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
@@ -51,13 +59,12 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
-        parent: _animationController,
+        parent: controller,
         curve: Curves.easeOutCubic,
       ),
     );
 
-    _animationController.forward();
-    context.read<SalesPersonnelBloc>().add(LoadDashboardEvent());
+    controller.forward();
   }
 
   Future<void> _startLocationTracking() async {
@@ -74,7 +81,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _animationController?.dispose();
     super.dispose();
   }
 
@@ -172,7 +179,13 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+    _initAnimations();
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthActionError) {
+          AppSnackbar.showError(context, state.message);
+        }
+      },
       builder: (context, authState) {
         UserEntity? user;
         if (authState is AuthAuthenticated) {
@@ -217,9 +230,9 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(20),
                               child: FadeTransition(
-                                opacity: _fadeAnimation,
+                                opacity: _fadeAnimation ?? const AlwaysStoppedAnimation(1.0),
                                 child: SlideTransition(
-                                  position: _slideAnimation,
+                                  position: _slideAnimation ?? const AlwaysStoppedAnimation(Offset.zero),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -430,7 +443,7 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome, ${user?.name?.split(' ').first ?? 'Sales Rep'}!',
+                      'Welcome, ${user?.name.split(' ').first ?? 'Sales Rep'}!',
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                     ),
                     const SizedBox(height: 4),
@@ -610,5 +623,4 @@ class _SalesPersonnelDashboardPageState extends State<SalesPersonnelDashboardPag
       ),
     );
   }
-
 }

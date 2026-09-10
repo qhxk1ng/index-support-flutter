@@ -36,6 +36,8 @@ class ApiEndpoints {
   static const String updateProfile = '/users/profile';
   static const String switchRole = '/users/switch-role';
   static const String addRole = '/users/add-role';
+  static const String requestRoleUpgrade = '/role-upgrade/request';
+  static const String myRoleUpgradeRequests = '/role-upgrade/my';
   static const String changePassword = '/users/change-password';
   static const String deleteAccount = '/users/account';
   

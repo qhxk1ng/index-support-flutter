@@ -158,3 +158,18 @@ class ChangePasswordEvent extends AuthEvent {
 class DeleteAccountEvent extends AuthEvent {}
 
 class LogoutEvent extends AuthEvent {}
+
+class RequestRoleUpgradeEvent extends AuthEvent {
+  final String requestedRole;
+  final String? reason;
+
+  const RequestRoleUpgradeEvent({
+    required this.requestedRole,
+    this.reason,
+  });
+
+  @override
+  List<Object?> get props => [requestedRole, reason];
+}
+
+class GetMyRoleUpgradeRequestsEvent extends AuthEvent {}
