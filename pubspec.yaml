@@ -47,9 +47,6 @@ dependencies:
   cached_network_image: ^3.3.1
   
   # UI Components
-  flutter_svg: ^2.0.9
-  shimmer: ^3.0.0
-  lottie: ^3.0.0
   
   # Utilities
   intl: any
