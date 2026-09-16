@@ -189,6 +189,116 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
     }
   }
 
+  void _showInvalidQrDialog(String message) {
+    final isScanning = _step == 1;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: Colors.red,
+                size: 38,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Invalid QR Code',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF64748B),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _reset();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      if (isScanning) {
+                        setState(() {
+                          _qrProcessed = false;
+                          _qrController?.start();
+                        });
+                      } else {
+                        setState(() {
+                          _qrProcessed = false;
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _green,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      isScanning ? 'Scan Again' : 'Try Again',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _reset() {
     _qrController?.stop();
     _qrController?.dispose();
@@ -218,14 +328,17 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
           _successController.forward();
         } else if (state is CustomerError) {
           setState(() => _isUploading = false);
-          // If scanning failed, allow re-scan
-          if (_step == 1) {
-            setState(() {
-              _qrProcessed = false;
-              _qrController?.start();
-            });
+          final msgLower = state.message.toLowerCase();
+          final isQrIssue = _step == 1 ||
+              msgLower.contains('invalid qr') ||
+              msgLower.contains('tagged as sold') ||
+              msgLower.contains('not recognized');
+
+          if (isQrIssue) {
+            _showInvalidQrDialog(state.message);
+          } else {
+            AppSnackbar.showError(context, state.message);
           }
-          AppSnackbar.showError(context, state.message);
         }
       },
       child: Scaffold(
@@ -1268,22 +1381,6 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
     return '${months3[expiry.month - 1]} ${expiry.day}, ${expiry.year}';
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFEF4444),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 }
 
