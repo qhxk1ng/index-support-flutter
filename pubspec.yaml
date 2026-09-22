@@ -1,7 +1,7 @@
 name: index_care_app
 description: Index Care - Service Management Application
 publish_to: 'none'
-version: 1.0.2+5
+version: 1.0.3+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -59,7 +59,7 @@ dependencies:
   
 
   # QR Code
-  mobile_scanner: ^6.0.2
+  mobile_scanner: ^7.4.0
 
   # WebView (account deletion page)
   webview_flutter: ^4.10.0

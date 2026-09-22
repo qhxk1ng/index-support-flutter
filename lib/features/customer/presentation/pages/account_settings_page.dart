@@ -6,6 +6,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_error_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/role_switcher_modal.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import 'role_upgrade_page.dart';
 
@@ -95,19 +96,30 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Account Settings'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
+        title: Text(
+          'Account Settings',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: const [
+          ThemeToggleButton(isInAppBar: true),
+          SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
             height: 1,
-            color: Colors.grey[200],
+            color: isDark ? const Color(0xFF334155) : Colors.grey[200],
           ),
         ),
       ),
@@ -205,13 +217,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
     required String title,
     required Color color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withOpacity(isDark ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 20, color: color),
@@ -219,10 +232,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
         const SizedBox(width: 12),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1E293B),
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
           ),
         ),
       ],
@@ -230,14 +243,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   Widget _buildProfileCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.transparent,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -317,6 +334,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   Widget _buildRoleUpgradeCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is! AuthAuthenticated) return const SizedBox.shrink();
@@ -325,12 +343,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -345,7 +365,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0284C7).withOpacity(0.1),
+                        color: const Color(0xFF0284C7).withOpacity(isDark ? 0.2 : 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFF0284C7), size: 22),
@@ -355,13 +375,20 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Active Role',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
+                            ),
                           ),
                           Text(
                             (user.activeRole ?? 'CUSTOMER').replaceAll('_', ' '),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
                         ],
                       ),
@@ -380,19 +407,33 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              Divider(
+                height: 1,
+                color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+              ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 leading: const Icon(Icons.upgrade_rounded, color: Color(0xFF10B981)),
-                title: const Text(
+                title: Text(
                   'Request Role Upgrade',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Upgrade to Field Personnel, Sales Personnel, or Installer',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
+                  ),
                 ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                trailing: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? const Color(0xFF64748B) : Colors.grey,
+                ),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -408,14 +449,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   Widget _buildPasswordCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.transparent,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -550,15 +595,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   }
 
   Widget _buildDeleteAccountCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        border: Border.all(color: Colors.red.withOpacity(isDark ? 0.35 : 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withOpacity(0.04),
+            color: Colors.red.withOpacity(isDark ? 0.1 : 0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -567,12 +613,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Permanently delete your account',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 8),
@@ -580,7 +626,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
             'This action is irreversible. All your data, including profile, complaints, and location history will be permanently removed.',
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey[600],
+              color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
               height: 1.5,
             ),
           ),
@@ -638,30 +684,45 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: isDark ? Colors.white : const Color(0xFF0F172A),
+      ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14),
-        labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+        hintStyle: TextStyle(
+          color: isDark ? const Color(0xFF64748B) : Colors.grey[400],
+          fontSize: 14,
+        ),
+        labelStyle: TextStyle(
+          color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
+          fontSize: 14,
+        ),
         prefixIcon: Icon(icon, color: const Color(0xFF2563EB), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey[200]!),
+          borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey[200]!),
+          borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),

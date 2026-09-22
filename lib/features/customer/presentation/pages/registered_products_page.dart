@@ -6,6 +6,7 @@ import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
 import '../../domain/entities/warranty_entity.dart';
 import '../../../../core/services/warranty_card_pdf_service.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class RegisteredProductsPage extends StatefulWidget {
@@ -34,15 +35,29 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Registered Products'),
+        title: const Text(
+          'Registered Products',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            letterSpacing: -0.3,
+          ),
+        ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: const Color(0xFFEA580C),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEA580C),
         foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 4),
+            child: ThemeToggleButton(isInAppBar: true),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -69,13 +84,15 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                      color: isDark ? Colors.white : Colors.grey[800],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     state.message,
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -100,7 +117,7 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                     Icon(
                       Icons.inventory_2_outlined,
                       size: 80,
-                      color: Colors.grey[400],
+                      color: isDark ? const Color(0xFF475569) : Colors.grey[400],
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -108,13 +125,15 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[700],
+                        color: isDark ? Colors.white : Colors.grey[700],
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Register your products to activate warranty',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
@@ -142,6 +161,7 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
   }
 
   Widget _buildProductCard(WarrantyEntity warranty) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = _getWarrantyStatusColor(warranty);
     final boardDays = warranty.boardDaysRemaining;
     final batteryDays = warranty.batteryDaysRemaining;
@@ -149,11 +169,14 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -169,10 +192,10 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [
-                        const Color(0xFFEA580C),
-                        const Color(0xFFF97316),
+                        Color(0xFFEA580C),
+                        Color(0xFFF97316),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -192,9 +215,10 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                     children: [
                       Text(
                         warranty.product?.name ?? 'Product',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -202,7 +226,7 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                         warranty.product?.category ?? '',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
                         ),
                       ),
                     ],
@@ -214,7 +238,7 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -251,29 +275,37 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : Colors.transparent,
+                ),
               ),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.qr_code, size: 16, color: Colors.grey[700]),
+                      Icon(
+                        Icons.qr_code,
+                        size: 16,
+                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey[700],
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Serial Number:',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
                         ),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           warranty.serialNumber?.serialNumber ?? 'N/A',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
@@ -282,21 +314,26 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[700]),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: isDark ? const Color(0xFF94A3B8) : Colors.grey[700],
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Registered:',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey[600],
                         ),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('MMM dd, yyyy').format(warranty.registrationDate),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
@@ -309,13 +346,13 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withOpacity(isDark ? 0.15 : 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withOpacity(isDark ? 0.4 : 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.pending, size: 20, color: Colors.orange),
+                    Icon(Icons.pending, size: 20, color: isDark ? const Color(0xFFFBBF24) : Colors.orange),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -324,9 +361,9 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                             : warranty.status == WarrantyStatus.rejected
                                 ? 'Rejected: ${warranty.rejectionReason}'
                                 : 'Pending Admin Approval',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.orange,
+                          color: isDark ? const Color(0xFFFBBF24) : Colors.orange,
                         ),
                       ),
                     ),
@@ -337,13 +374,25 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                  color: warranty.boardWarrantyExpired
+                      ? Colors.red.withOpacity(isDark ? 0.15 : 0.1)
+                      : Colors.green.withOpacity(isDark ? 0.15 : 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                  border: Border.all(
+                    color: warranty.boardWarrantyExpired
+                        ? Colors.red.withOpacity(isDark ? 0.4 : 0.3)
+                        : Colors.green.withOpacity(isDark ? 0.4 : 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.memory, size: 20, color: warranty.boardWarrantyExpired ? Colors.red : Colors.green),
+                    Icon(
+                      Icons.memory,
+                      size: 20,
+                      color: warranty.boardWarrantyExpired
+                          ? (isDark ? const Color(0xFFF87171) : Colors.red)
+                          : (isDark ? const Color(0xFF4ADE80) : Colors.green),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -355,7 +404,9 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                                 : 'Board Warranty Valid',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: warranty.boardWarrantyExpired ? Colors.red : Colors.green,
+                              color: warranty.boardWarrantyExpired
+                                  ? (isDark ? const Color(0xFFF87171) : Colors.red)
+                                  : (isDark ? const Color(0xFF4ADE80) : Colors.green),
                               fontSize: 13,
                             ),
                           ),
@@ -365,10 +416,12 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                                 ? 'Expired on ${DateFormat('MMM dd, yyyy').format(warranty.boardWarrantyExpiry!)}'
                                 : boardDays > 0
                                     ? '$boardDays days remaining • Expires ${DateFormat('MMM dd, yyyy').format(warranty.boardWarrantyExpiry!)}'
-                                  : 'Expires today',
+                                    : 'Expires today',
                             style: TextStyle(
                               fontSize: 11,
-                              color: warranty.boardWarrantyExpired ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+                              color: warranty.boardWarrantyExpired
+                                  ? (isDark ? const Color(0xFFFCA5A5) : Colors.red.withOpacity(0.8))
+                                  : (isDark ? const Color(0xFF86EFAC) : Colors.green.withOpacity(0.8)),
                             ),
                           ),
                         ],
@@ -383,13 +436,25 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                  color: warranty.batteryWarrantyExpired
+                      ? Colors.red.withOpacity(isDark ? 0.15 : 0.1)
+                      : Colors.green.withOpacity(isDark ? 0.15 : 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                  border: Border.all(
+                    color: warranty.batteryWarrantyExpired
+                        ? Colors.red.withOpacity(isDark ? 0.4 : 0.3)
+                        : Colors.green.withOpacity(isDark ? 0.4 : 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.battery_charging_full, size: 20, color: warranty.batteryWarrantyExpired ? Colors.red : Colors.green),
+                    Icon(
+                      Icons.battery_charging_full,
+                      size: 20,
+                      color: warranty.batteryWarrantyExpired
+                          ? (isDark ? const Color(0xFFF87171) : Colors.red)
+                          : (isDark ? const Color(0xFF4ADE80) : Colors.green),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -401,7 +466,9 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                                 : 'Battery Warranty Valid',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: warranty.batteryWarrantyExpired ? Colors.red : Colors.green,
+                              color: warranty.batteryWarrantyExpired
+                                  ? (isDark ? const Color(0xFFF87171) : Colors.red)
+                                  : (isDark ? const Color(0xFF4ADE80) : Colors.green),
                               fontSize: 13,
                             ),
                           ),
@@ -411,10 +478,12 @@ class _RegisteredProductsPageState extends State<RegisteredProductsPage> {
                                 ? 'Expired on ${DateFormat('MMM dd, yyyy').format(warranty.batteryWarrantyExpiry!)}'
                                 : batteryDays > 0
                                     ? '$batteryDays days remaining • Expires ${DateFormat('MMM dd, yyyy').format(warranty.batteryWarrantyExpiry!)}'
-                                  : 'Expires today',
+                                    : 'Expires today',
                             style: TextStyle(
                               fontSize: 11,
-                              color: warranty.batteryWarrantyExpired ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+                              color: warranty.batteryWarrantyExpired
+                                  ? (isDark ? const Color(0xFFFCA5A5) : Colors.red.withOpacity(0.8))
+                                  : (isDark ? const Color(0xFF86EFAC) : Colors.green.withOpacity(0.8)),
                             ),
                           ),
                         ],

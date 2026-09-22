@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 
@@ -103,13 +104,24 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Account Upgrade'),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Account Upgrade',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0.5,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+        actions: const [
+          ThemeToggleButton(isInAppBar: true),
+          SizedBox(width: 8),
+        ],
       ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -237,12 +249,12 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Select Desired Role',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -261,18 +273,20 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isSelected
                                     ? color
-                                    : (isAlreadyOwned ? Colors.grey.shade200 : Colors.grey.shade300),
+                                    : (isDark
+                                        ? const Color(0xFF334155)
+                                        : (isAlreadyOwned ? Colors.grey.shade200 : Colors.grey.shade300)),
                                 width: isSelected ? 2 : 1,
                               ),
                               boxShadow: [
                                 if (isSelected)
                                   BoxShadow(
-                                    color: color.withOpacity(0.12),
+                                    color: color.withOpacity(isDark ? 0.25 : 0.12),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -283,7 +297,7 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: color.withOpacity(0.1),
+                                    color: color.withOpacity(isDark ? 0.2 : 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
@@ -304,7 +318,9 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 15,
-                                              color: isAlreadyOwned ? Colors.grey.shade500 : const Color(0xFF0F172A),
+                                              color: isAlreadyOwned
+                                                  ? (isDark ? const Color(0xFF64748B) : Colors.grey.shade500)
+                                                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
                                             ),
                                           ),
                                           if (isAlreadyOwned) ...[
@@ -312,12 +328,16 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
+                                                color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 'Already Active',
-                                                style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.w600),
+                                                style: TextStyle(
+                                                  color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -327,7 +347,7 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                                       Text(
                                         roleInfo['subtitle'] as String,
                                         style: TextStyle(
-                                          color: Colors.grey.shade600,
+                                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
                                           fontSize: 12,
                                           height: 1.3,
                                         ),
@@ -339,7 +359,7 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                                 if (!isAlreadyOwned)
                                   Icon(
                                     isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                                    color: isSelected ? color : Colors.grey.shade400,
+                                    color: isSelected ? color : (isDark ? const Color(0xFF64748B) : Colors.grey.shade400),
                                   ),
                               ],
                             ),
@@ -350,30 +370,41 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                       const SizedBox(height: 14),
 
                       // Reason Text Field
-                      const Text(
+                      Text(
                         'Reason for Upgrade Request',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _reasonController,
                         maxLines: 3,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Describe your role, territory, or reason for requesting this upgrade...',
-                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                          fillColor: Colors.white,
+                          hintStyle: TextStyle(
+                            color: isDark ? const Color(0xFF64748B) : Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
+                          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           filled: true,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -432,12 +463,12 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'My Upgrade Requests',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                     IconButton(
@@ -461,14 +492,19 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                      ),
                     ),
                     child: Center(
                       child: Text(
                         'No upgrade requests submitted yet.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade500,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   )
@@ -485,9 +521,11 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,16 +535,16 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                             children: [
                               Text(
                                 _formatRoleName(roleReq),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 15,
-                                  color: Color(0xFF0F172A),
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                                 ),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.12),
+                                  color: statusColor.withOpacity(isDark ? 0.2 : 0.12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -524,7 +562,10 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                             const SizedBox(height: 6),
                             Text(
                               'Reason: $reason',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFFCBD5E1) : Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                           if (adminNote.isNotEmpty) ...[
@@ -532,17 +573,24 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.admin_panel_settings_rounded, size: 14, color: Color(0xFF475569)),
+                                  Icon(
+                                    Icons.admin_panel_settings_rounded,
+                                    size: 14,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                  ),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Admin Note: $adminNote',
-                                      style: const TextStyle(color: Color(0xFF475569), fontSize: 11),
+                                      style: TextStyle(
+                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -553,7 +601,10 @@ class _RoleUpgradePageState extends State<RoleUpgradePage> {
                             const SizedBox(height: 6),
                             Text(
                               createdAt.length > 10 ? createdAt.substring(0, 10) : createdAt,
-                              style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFF64748B) : Colors.grey.shade400,
+                                fontSize: 10,
+                              ),
                             ),
                           ],
                         ],

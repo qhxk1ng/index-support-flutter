@@ -85,36 +85,34 @@ class _AuthAnimatedContainerState extends State<AuthAnimatedContainer>
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 32,
+              minHeight: constraints.maxHeight > 32 ? constraints.maxHeight - 32 : 0,
             ),
-            child: IntrinsicHeight(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(flex: 2),
-                  SlideTransition(
-                    position: _logoSlide,
-                    child: FadeTransition(
-                      opacity: _logoFade,
-                      child: widget.logo,
-                    ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 16),
+                SlideTransition(
+                  position: _logoSlide,
+                  child: FadeTransition(
+                    opacity: _logoFade,
+                    child: widget.logo,
                   ),
-                  const SizedBox(height: 24),
-                  SlideTransition(
-                    position: _formSlide,
-                    child: FadeTransition(
-                      opacity: _formFade,
-                      child: widget.form,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  FadeTransition(
+                ),
+                const SizedBox(height: 24),
+                SlideTransition(
+                  position: _formSlide,
+                  child: FadeTransition(
                     opacity: _formFade,
-                    child: widget.bottomContent,
+                    child: widget.form,
                   ),
-                  const Spacer(flex: 3),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
+                FadeTransition(
+                  opacity: _formFade,
+                  child: widget.bottomContent,
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
         );

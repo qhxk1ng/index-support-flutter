@@ -21,10 +21,10 @@ abstract class CustomerRepository {
 
   Future<Either<Failure, WarrantyEntity>> registerWarranty({
     required String serialNumber,
-    required int manufacturingMonth,
-    required int manufacturingYear,
+    int? manufacturingMonth,
+    int? manufacturingYear,
     DateTime? purchaseDate,
-    required String invoiceUrl,
+    String? invoiceUrl,
   });
 
   Future<Either<Failure, List<WarrantyEntity>>> getWarranties();

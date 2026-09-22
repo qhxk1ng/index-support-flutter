@@ -82,6 +82,38 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
         },
       ),
       SidebarMenuItem(
+        icon: Icons.verified_user_outlined,
+        title: 'Register Warranty',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const WarrantyRegistrationPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      SidebarMenuItem(
+        icon: Icons.inventory_2_outlined,
+        title: 'Registered Products',
+        onTap: () {
+          _sidebarKey.currentState?.closeSidebar();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const RegisteredProductsPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      SidebarMenuItem(
         icon: Icons.report_problem_outlined,
         title: 'Raise Complaint',
         onTap: () {
@@ -108,38 +140,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               builder: (context) => BlocProvider(
                 create: (context) => di.sl<CustomerBloc>(),
                 child: const ExistingTicketsPage(),
-              ),
-            ),
-          );
-        },
-      ),
-      SidebarMenuItem(
-        icon: Icons.verified_user_outlined,
-        title: 'Register Product',
-        onTap: () {
-          _sidebarKey.currentState?.closeSidebar();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BlocProvider(
-                create: (context) => di.sl<CustomerBloc>(),
-                child: const WarrantyRegistrationPage(),
-              ),
-            ),
-          );
-        },
-      ),
-      SidebarMenuItem(
-        icon: Icons.inventory_2_outlined,
-        title: 'Registered Products',
-        onTap: () {
-          _sidebarKey.currentState?.closeSidebar();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BlocProvider(
-                create: (context) => di.sl<CustomerBloc>(),
-                child: const RegisteredProductsPage(),
               ),
             ),
           );
@@ -255,44 +255,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
           
           // Theme Toggle
           const ThemeToggleButton(),
-          const SizedBox(width: 12),
-          
-          // Notification Icon
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {},
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Stack(
-                  children: [
-                    Icon(
-                      Icons.notifications_outlined,
-                      color: isDark ? Colors.white70 : const Color(0xFF1E3A8A),
-                      size: 24,
-                    ),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -346,59 +308,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
   Widget _buildFeatureGrid() {
     final features = [
       _FeatureCard(
-        title: 'Raise A Complaint',
-        description: 'Submit a new service request',
-        icon: Icons.report_problem_outlined,
-        color: const Color(0xFF1E3A8A),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BlocProvider(
-                create: (context) => di.sl<CustomerBloc>(),
-                child: const RaiseComplaintPage(),
-              ),
-            ),
-          );
-        },
-      ),
-      _FeatureCard(
-        title: 'Existing Tickets',
-        description: 'View your active complaints',
-        icon: Icons.confirmation_number_outlined,
-        color: const Color(0xFF7C3AED),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7C3AED), Color(0xFFA78BFA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BlocProvider(
-                create: (context) => di.sl<CustomerBloc>(),
-                child: const ExistingTicketsPage(),
-              ),
-            ),
-          );
-        },
-      ),
-      _FeatureCard(
-        title: 'Register for Warranty',
-        description: 'Register your new product',
-        icon: Icons.verified_user_outlined,
-        color: const Color(0xFF059669),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF059669), Color(0xFF10B981)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        title: 'Register Warranty',
+        description: 'Register and activate your new product',
+        icon: Icons.verified_user_rounded,
+        accentColor: const Color(0xFF10B981),
+        darkBackground: const [Color(0xFF0C241B), Color(0xFF113829)],
+        lightBackground: const [Color(0xFFF0FDF4), Color(0xFFDCFCE7)],
+        iconGradient: const [Color(0xFF059669), Color(0xFF10B981)],
         onTap: () {
           Navigator.push(
             context,
@@ -413,14 +329,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
       ),
       _FeatureCard(
         title: 'Registered Products',
-        description: 'View your products',
-        icon: Icons.inventory_2_outlined,
-        color: const Color(0xFFEA580C),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        description: 'View and track all your products',
+        icon: Icons.inventory_2_rounded,
+        accentColor: const Color(0xFFF97316),
+        darkBackground: const [Color(0xFF28160B), Color(0xFF3B200F)],
+        lightBackground: const [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+        iconGradient: const [Color(0xFFEA580C), Color(0xFFF97316)],
         onTap: () {
           Navigator.push(
             context,
@@ -428,6 +342,46 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
               builder: (context) => BlocProvider(
                 create: (context) => di.sl<CustomerBloc>(),
                 child: const RegisteredProductsPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      _FeatureCard(
+        title: 'Raise A Complaint',
+        description: 'Submit a new service ticket',
+        icon: Icons.report_problem_rounded,
+        accentColor: const Color(0xFF3B82F6),
+        darkBackground: const [Color(0xFF0D1D38), Color(0xFF132A52)],
+        lightBackground: const [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+        iconGradient: const [Color(0xFF2563EB), Color(0xFF3B82F6)],
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const RaiseComplaintPage(),
+              ),
+            ),
+          );
+        },
+      ),
+      _FeatureCard(
+        title: 'Existing Tickets',
+        description: 'Track your ongoing complaints',
+        icon: Icons.confirmation_number_rounded,
+        accentColor: const Color(0xFFA855F7),
+        darkBackground: const [Color(0xFF201038), Color(0xFF2E1750)],
+        lightBackground: const [Color(0xFFFAF5FF), Color(0xFFF3E8FF)],
+        iconGradient: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider(
+                create: (context) => di.sl<CustomerBloc>(),
+                child: const ExistingTicketsPage(),
               ),
             ),
           );
@@ -442,7 +396,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.80,
       ),
       itemCount: features.length,
       itemBuilder: (context, index) {
@@ -467,131 +421,172 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage>
 
   Widget _buildFeatureCard(_FeatureCard feature) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final bgColors = isDark ? feature.darkBackground : feature.lightBackground;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final descColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: feature.onTap,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
           decoration: BoxDecoration(
-            gradient: isDark 
-                ? LinearGradient(
-                    colors: [
-                      feature.color.withOpacity(0.3),
-                      feature.color.withOpacity(0.2),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : feature.gradient,
-            borderRadius: BorderRadius.circular(24),
-            border: isDark 
-                ? Border.all(
-                    color: feature.color.withOpacity(0.3),
-                    width: 1,
-                  )
-                : null,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isDark
+                  ? feature.accentColor.withOpacity(0.32)
+                  : feature.accentColor.withOpacity(0.25),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: feature.color.withOpacity(isDark ? 0.1 : 0.3),
-                blurRadius: isDark ? 12 : 20,
-                offset: Offset(0, isDark ? 4 : 10),
+                color: isDark
+                    ? feature.accentColor.withOpacity(0.12)
+                    : feature.accentColor.withOpacity(0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
               ),
+              if (isDark)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
             ],
           ),
-          child: Stack(
-            children: [
-              // Background Pattern
-              Positioned(
-                right: -20,
-                top: -20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(21),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                // Background Gradient
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: bgColors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        feature.icon,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      feature.title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      feature.description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.9),
-                        height: 1.3,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Open',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white.withOpacity(0.9),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white.withOpacity(0.9),
-                            size: 12,
-                          ),
+                // Soft ambient top-right glow contained within the card
+                Positioned(
+                  top: -20,
+                  right: -20,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          feature.accentColor.withOpacity(isDark ? 0.22 : 0.15),
+                          Colors.transparent,
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Icon Badge
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: feature.iconGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(13),
+                          boxShadow: [
+                            BoxShadow(
+                              color: feature.accentColor.withOpacity(0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          feature.icon,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        feature.title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: titleColor,
+                          height: 1.2,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        feature.description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: descColor,
+                          height: 1.3,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 12),
+                      // Action Tag
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: feature.accentColor.withOpacity(isDark ? 0.18 : 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: feature.accentColor.withOpacity(isDark ? 0.35 : 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Open',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? feature.accentColor : feature.iconGradient.first,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: isDark ? feature.accentColor : feature.iconGradient.first,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -604,16 +599,20 @@ class _FeatureCard {
   final String title;
   final String description;
   final IconData icon;
-  final Color color;
-  final Gradient gradient;
+  final Color accentColor;
+  final List<Color> darkBackground;
+  final List<Color> lightBackground;
+  final List<Color> iconGradient;
   final VoidCallback onTap;
 
   _FeatureCard({
     required this.title,
     required this.description,
     required this.icon,
-    required this.color,
-    required this.gradient,
+    required this.accentColor,
+    required this.darkBackground,
+    required this.lightBackground,
+    required this.iconGradient,
     required this.onTap,
   });
 }

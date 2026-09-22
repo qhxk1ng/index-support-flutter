@@ -57,6 +57,20 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
       ],
       permission: Permission.notification,
     ),
+    _PermissionStep(
+      icon: Icons.camera_alt_rounded,
+      color: const Color(0xFF10B981),
+      title: 'Camera Access',
+      description:
+          'We need camera access to scan product QR codes for instant warranty '
+          'registration, verify equipment serial numbers, and attach service photos.',
+      whyNeeded: [
+        'Scan product QR codes instantly',
+        'Capture invoice photos for warranty',
+        'Attach photo proofs during service visits',
+      ],
+      permission: Permission.camera,
+    ),
   ];
 
   @override

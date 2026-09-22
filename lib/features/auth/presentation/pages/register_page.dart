@@ -65,10 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
         });
         
         if (mounted) {
-          AppSnackbar.showError(
-            context,
-            'Location services are disabled. Please enable them in settings.',
-          );
+          _showLocationServiceDisabledDialog();
         }
         return;
       }
@@ -83,7 +80,7 @@ class _RegisterPageState extends State<RegisterPage> {
           });
           
           if (mounted) {
-            AppSnackbar.showError(context, 'Location permission denied');
+            _showLocationRationaleDialog();
           }
           return;
         }
@@ -95,17 +92,14 @@ class _RegisterPageState extends State<RegisterPage> {
         });
         
         if (mounted) {
-          AppSnackbar.showError(
-            context,
-            'Location permissions are permanently denied. Please enable them in app settings.',
-          );
+          _showLocationPermanentlyDeniedDialog();
         }
         return;
       }
       
       // Get current position
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       
       setState(() {
@@ -126,6 +120,188 @@ class _RegisterPageState extends State<RegisterPage> {
         AppSnackbar.showError(context, e);
       }
     }
+  }
+
+  void _showLocationServiceDisabledDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_disabled_rounded, color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Location Service Off',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Please turn on your device location service so Index Care can detect your address and assign the nearest service technicians.',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Geolocator.openLocationSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Turn On'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocationRationaleDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_on_rounded, color: Color(0xFF2563EB), size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Why We Need Location',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _selectedRole == 'CUSTOMER'
+                  ? 'Index Care needs your location to connect your account with nearby certified technicians for fast doorstep service and warranty assistance.'
+                  : 'Index Care needs your location to automatically assign nearby service requests and optimize field dispatch in your service area.',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Your location is only used to route service requests and verify equipment installations.',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: isDark ? Colors.white60 : Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _getCurrentLocation();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Grant Access'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocationPermanentlyDeniedDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_off_rounded, color: Colors.red, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Permission Required',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Location access is permanently disabled. Index Care needs your location to assign nearby technicians and provide doorstep warranty support. Please enable it in Settings.',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Geolocator.openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
   
   String _normalizePhoneNumber(String phone) {
@@ -162,6 +338,17 @@ class _RegisterPageState extends State<RegisterPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is RegistrationSuccess) {
@@ -320,45 +507,46 @@ class _RegisterPageState extends State<RegisterPage> {
                   color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
                 ),
               ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _roles.length,
-                separatorBuilder: (_, __) => Divider(
-                  color: isDark ? const Color(0xFF334155) : Colors.grey[200],
-                  height: 1,
-                ),
-                itemBuilder: (context, index) {
-                  final role = _roles[index];
-                  final isSelected = _selectedRole == role['value'];
-                  
-                  return RadioListTile<String>(
-                    title: Row(
-                      children: [
-                        Text(role['icon']!, style: const TextStyle(fontSize: 20)),
-                        const SizedBox(width: 12),
-                        Text(
-                          role['label']!,
-                          style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                            color: isDark ? Colors.white : const Color(0xFF1E293B),
+              child: Column(
+                children: [
+                  for (int i = 0; i < _roles.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        color: isDark ? const Color(0xFF334155) : Colors.grey[200],
+                        height: 1,
+                      ),
+                    RadioListTile<String>(
+                      title: Row(
+                        children: [
+                          Text(_roles[i]['icon']!, style: const TextStyle(fontSize: 20)),
+                          const SizedBox(width: 12),
+                          Text(
+                            _roles[i]['label']!,
+                            style: TextStyle(
+                              fontWeight: _selectedRole == _roles[i]['value']
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      value: _roles[i]['value']!,
+                      groupValue: _selectedRole,
+                      activeColor: const Color(0xFF2563EB),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _selectedRole = value;
+                                });
+                              }
+                            },
                     ),
-                    value: role['value']!,
-                    groupValue: _selectedRole,
-                    activeColor: const Color(0xFF2563EB),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    onChanged: isLoading
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _selectedRole = value!;
-                            });
-                          },
-                  );
-                },
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -392,7 +580,46 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Text(
+                    _selectedRole == 'CUSTOMER'
+                        ? 'We need your location to connect you with nearby certified technicians and provide fast doorstep warranty service.'
+                        : 'We need your location to assign service requests and optimize dispatch in your service area.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFDBEAFE),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildLocationReasonItem(
+                          icon: Icons.home_repair_service_rounded,
+                          text: _selectedRole == 'CUSTOMER'
+                              ? 'Fast on-site technician dispatch to your door'
+                              : 'Automatic ticket assignment in your zone',
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 6),
+                        _buildLocationReasonItem(
+                          icon: Icons.verified_user_rounded,
+                          text: 'Maps equipment warranties to your local service hub',
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   if (_latitude != null && _longitude != null)
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -553,6 +780,34 @@ class _RegisterPageState extends State<RegisterPage> {
           ],
         ),
         const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildLocationReasonItem({
+    required IconData icon,
+    required String text,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+              height: 1.3,
+            ),
+          ),
+        ),
       ],
     );
   }

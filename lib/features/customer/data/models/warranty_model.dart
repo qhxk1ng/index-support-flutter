@@ -28,25 +28,27 @@ class WarrantyModel extends WarrantyEntity {
 
   factory WarrantyModel.fromJson(Map<String, dynamic> json) {
     return WarrantyModel(
-      id: json['id'] as String,
-      customerId: json['customerId'] as String,
-      productId: json['productId'] as String,
-      serialNumberId: json['serialNumberId'] as String,
-      manufacturingMonth: json['manufacturingMonth'] as int,
-      manufacturingYear: json['manufacturingYear'] as int,
-      registrationDate: DateTime.parse(json['registrationDate'] as String),
+      id: json['id'] as String? ?? '',
+      customerId: json['customerId'] as String? ?? '',
+      productId: json['productId'] as String? ?? '',
+      serialNumberId: json['serialNumberId'] as String? ?? '',
+      manufacturingMonth: json['manufacturingMonth'] as int? ?? 1,
+      manufacturingYear: json['manufacturingYear'] as int? ?? DateTime.now().year,
+      registrationDate: json['registrationDate'] != null
+          ? DateTime.parse(json['registrationDate'] as String)
+          : DateTime.now(),
       purchaseDate: json['purchaseDate'] != null ? DateTime.parse(json['purchaseDate'] as String) : null,
-      invoiceUrl: json['invoiceUrl'] as String,
-      status: _parseWarrantyStatus(json['status'] as String),
+      invoiceUrl: json['invoiceUrl'] as String? ?? '',
+      status: _parseWarrantyStatus(json['status'] as String? ?? 'APPROVED'),
       approvedAt: json['approvedAt'] != null ? DateTime.parse(json['approvedAt'] as String) : null,
       approvedBy: json['approvedBy'] as String?,
       rejectionReason: json['rejectionReason'] as String?,
       correctionRequested: json['correctionRequested'] as String?,
       boardWarrantyExpiry: json['boardWarrantyExpiry'] != null ? DateTime.parse(json['boardWarrantyExpiry'] as String) : null,
       batteryWarrantyExpiry: json['batteryWarrantyExpiry'] != null ? DateTime.parse(json['batteryWarrantyExpiry'] as String) : null,
-      isActive: json['isActive'] as bool,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      isActive: json['isActive'] as bool? ?? true,
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : DateTime.now(),
       product: json['product'] != null
           ? ProductModel.fromJson(json['product'] as Map<String, dynamic>)
           : null,

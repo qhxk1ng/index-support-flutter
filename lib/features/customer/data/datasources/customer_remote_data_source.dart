@@ -24,10 +24,10 @@ abstract class CustomerRemoteDataSource {
 
   Future<WarrantyModel> registerWarranty({
     required String serialNumber,
-    required int manufacturingMonth,
-    required int manufacturingYear,
+    int? manufacturingMonth,
+    int? manufacturingYear,
     DateTime? purchaseDate,
-    required String invoiceUrl,
+    String? invoiceUrl,
   });
 
   Future<List<WarrantyModel>> getWarranties();
@@ -91,18 +91,23 @@ class CustomerRemoteDataSourceImpl implements CustomerRemoteDataSource {
   @override
   Future<WarrantyModel> registerWarranty({
     required String serialNumber,
-    required int manufacturingMonth,
-    required int manufacturingYear,
+    int? manufacturingMonth,
+    int? manufacturingYear,
     DateTime? purchaseDate,
-    required String invoiceUrl,
+    String? invoiceUrl,
   }) async {
-    final data = {
+    final data = <String, dynamic>{
       'serialNumber': serialNumber,
-      'manufacturingMonth': manufacturingMonth,
-      'manufacturingYear': manufacturingYear,
-      'invoiceUrl': invoiceUrl,
     };
-    
+    if (manufacturingMonth != null) {
+      data['manufacturingMonth'] = manufacturingMonth;
+    }
+    if (manufacturingYear != null) {
+      data['manufacturingYear'] = manufacturingYear;
+    }
+    if (invoiceUrl != null && invoiceUrl.isNotEmpty) {
+      data['invoiceUrl'] = invoiceUrl;
+    }
     if (purchaseDate != null) {
       data['purchaseDate'] = purchaseDate.toIso8601String();
     }

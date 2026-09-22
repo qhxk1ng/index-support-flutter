@@ -67,10 +67,10 @@ class CustomerRepositoryImpl implements CustomerRepository {
   @override
   Future<Either<Failure, WarrantyEntity>> registerWarranty({
     required String serialNumber,
-    required int manufacturingMonth,
-    required int manufacturingYear,
+    int? manufacturingMonth,
+    int? manufacturingYear,
     DateTime? purchaseDate,
-    required String invoiceUrl,
+    String? invoiceUrl,
   }) async {
     try {
       final result = await remoteDataSource.registerWarranty(

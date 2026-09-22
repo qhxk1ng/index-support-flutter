@@ -50,17 +50,17 @@ class ValidateSerialEvent extends CustomerEvent {
 
 class RegisterWarrantyEvent extends CustomerEvent {
   final String serialNumber;
-  final int manufacturingMonth;
-  final int manufacturingYear;
+  final int? manufacturingMonth;
+  final int? manufacturingYear;
   final DateTime? purchaseDate;
-  final String invoiceUrl;
+  final String? invoiceUrl;
 
   const RegisterWarrantyEvent({
     required this.serialNumber,
-    required this.manufacturingMonth,
-    required this.manufacturingYear,
+    this.manufacturingMonth,
+    this.manufacturingYear,
     this.purchaseDate,
-    required this.invoiceUrl,
+    this.invoiceUrl,
   });
 
   @override

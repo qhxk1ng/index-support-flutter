@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
@@ -7,6 +6,7 @@ import 'dart:io';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/barcode_scanner_modal.dart';
 
 /// Page for managing work on a specific complaint ticket.
 /// Handles: QR scan / manual start → log parts replaced → end work.
@@ -53,9 +53,12 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
 
   // ─── QR Scan Method ──────────────────────────────────────────────────────
   Future<void> _startWorkWithQR() async {
-    final scannedSerial = await Navigator.push<String>(
+    final scannedSerial = await BarcodeScannerModal.scan(
       context,
-      MaterialPageRoute(builder: (_) => const _QRScanPage()),
+      title: 'Scan Product QR Code',
+      instruction: 'Point camera at product QR code',
+      manualLabel: 'Product Serial Number',
+      manualHint: 'e.g. IDX-2024-00001',
     );
     if (scannedSerial != null && scannedSerial.isNotEmpty && mounted) {
       await _submitStartWork('QR_SCAN', serialNumber: scannedSerial);
@@ -775,72 +778,6 @@ class _WorkManagementPageState extends State<WorkManagementPage> {
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── QR Scanner Page ───────────────────────────────────────────────────────
-class _QRScanPage extends StatefulWidget {
-  const _QRScanPage();
-
-  @override
-  State<_QRScanPage> createState() => _QRScanPageState();
-}
-
-class _QRScanPageState extends State<_QRScanPage> {
-  final MobileScannerController _scannerController = MobileScannerController();
-  bool _hasScanned = false;
-
-  @override
-  void dispose() {
-    _scannerController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Product QR'),
-        backgroundColor: const Color(0xFF10B981),
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: _scannerController,
-            onDetect: (capture) {
-              if (_hasScanned) return;
-              final barcode = capture.barcodes.firstOrNull;
-              if (barcode?.rawValue != null) {
-                _hasScanned = true;
-                Navigator.pop(context, barcode!.rawValue);
-              }
-            },
-          ),
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF10B981), width: 3),
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Text(
-              'Point camera at the product QR code',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16, fontWeight: FontWeight.w600,
-                  shadows: [Shadow(blurRadius: 8, color: Colors.black.withOpacity(0.5))]),
-            ),
-          ),
         ],
       ),
     );
