@@ -8,7 +8,11 @@ class StorageService {
   factory StorageService() => _instance;
   StorageService._internal();
   
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+    ),
+  );
   SharedPreferences? _prefs;
   String? _cachedToken;
   bool _tokenLoaded = false;
@@ -16,28 +20,36 @@ class StorageService {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     // Warm the token cache once at startup so AuthInterceptor doesn't have to
-    // hit the Android Keystore on every API call (can be 100-500ms per call).
+    // hit the secure Keychain/Keystore on every API call.
     try {
       _cachedToken = await _secureStorage.read(key: AppConstants.tokenKey);
     } catch (_) {
       _cachedToken = null;
     }
+    _cachedToken ??= _prefs?.getString(AppConstants.tokenKey);
     _tokenLoaded = true;
   }
   
   Future<void> saveToken(String token) async {
     _cachedToken = token;
     _tokenLoaded = true;
-    await _secureStorage.write(key: AppConstants.tokenKey, value: token);
+    await _prefs?.setString(AppConstants.tokenKey, token);
+    try {
+      await _secureStorage.write(key: AppConstants.tokenKey, value: token);
+    } catch (_) {
+      // Keychain may fail on iOS simulator without code-signing entitlements (-34018).
+      // SharedPreferences above ensures the token is safely stored and available.
+    }
   }
   
   Future<String?> getToken() async {
-    if (_tokenLoaded) return _cachedToken;
+    if (_tokenLoaded && _cachedToken != null) return _cachedToken;
     try {
       _cachedToken = await _secureStorage.read(key: AppConstants.tokenKey);
     } catch (_) {
       _cachedToken = null;
     }
+    _cachedToken ??= _prefs?.getString(AppConstants.tokenKey);
     _tokenLoaded = true;
     return _cachedToken;
   }
@@ -45,7 +57,10 @@ class StorageService {
   Future<void> deleteToken() async {
     _cachedToken = null;
     _tokenLoaded = true;
-    await _secureStorage.delete(key: AppConstants.tokenKey);
+    try {
+      await _secureStorage.delete(key: AppConstants.tokenKey);
+    } catch (_) {}
+    await _prefs?.remove(AppConstants.tokenKey);
   }
   
   Future<void> saveUserData(Map<String, dynamic> userData) async {
@@ -84,7 +99,9 @@ class StorageService {
   Future<void> clearAll() async {
     _cachedToken = null;
     _tokenLoaded = true;
-    await _secureStorage.deleteAll();
+    try {
+      await _secureStorage.deleteAll();
+    } catch (_) {}
     await _prefs?.clear();
   }
   

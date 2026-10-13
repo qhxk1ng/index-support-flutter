@@ -198,13 +198,13 @@ class _TicketNavigationPageState extends State<TicketNavigationPage> {
                 _buildTopCard(),
                 _buildBottomCard(),
                 Positioned(
-                  top: 50,
+                  top: MediaQuery.of(context).padding.top + 8,
                   left: 16,
                   child: FloatingActionButton(
                     mini: true,
                     backgroundColor: Colors.white,
                     onPressed: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back, color: Colors.black87),
+                    child: const BackButtonIcon(),
                   ),
                 ),
                 Positioned(
@@ -224,7 +224,7 @@ class _TicketNavigationPageState extends State<TicketNavigationPage> {
 
   Widget _buildTopCard() {
     return Positioned(
-      top: 50,
+      top: MediaQuery.of(context).padding.top + 8,
       left: 80,
       right: 16,
       child: Card(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_client.dart';
@@ -95,6 +96,27 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 5) {
       AppSnackbar.showError(context, 'You can select up to 5 images only');
+      return;
+    }
+
+    final status = await Permission.photos.request();
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          'Photo library access is required to attach images. Please enable it in Settings.',
+        );
+        await openAppSettings();
+      }
+      return;
+    }
+    if (status.isDenied) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          'Photo library access was not granted.',
+        );
+      }
       return;
     }
 

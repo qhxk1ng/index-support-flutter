@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,11 +6,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'background_location_service.dart';
 
-/// Handles the Google Play-compliant "prominent disclosure" flow before
-/// requesting and using the user's background location.
+/// Handles the prominent disclosure flow before requesting and using
+/// the user's background location.
 ///
-/// Google Play policy requires that the user be shown a clear in-app
-/// disclosure that:
+/// Prominent disclosure requirements:
 ///   1. Identifies the type of data being accessed (location).
 ///   2. Explains the data is also collected in the background.
 ///   3. Explains why the data is collected and how it is used.
@@ -45,10 +45,7 @@ class BackgroundLocationDisclosure {
     });
 
     if (accepted && bgStatus.isGranted) {
-      // Already through the disclosure flow once. Still re-check battery
-      // optimization in case the user disabled it between sessions —
-      // otherwise the foreground service will be killed in Doze mode.
-      if (context.mounted) {
+      if (Platform.isAndroid && context.mounted) {
         await _ensureBatteryOptimizationDisabled(context, roleLabel, prefs);
       }
       await BackgroundLocationService.start();
@@ -125,11 +122,9 @@ class BackgroundLocationDisclosure {
       return;
     }
 
-    // 6. Show our own "app runs in background" disclosure, then the system
-    //    battery-optimization prompt. Without this exemption, Android Doze
-    //    will suspend the foreground service after a few minutes and live
-    //    tracking will silently die.
-    if (context.mounted) {
+    // 6. On Android, prompt for battery optimization exemption if needed.
+    //    On iOS, background modes handle this natively.
+    if (Platform.isAndroid && context.mounted) {
       await _ensureBatteryOptimizationDisabled(context, roleLabel, prefs);
     }
 
@@ -146,6 +141,7 @@ class BackgroundLocationDisclosure {
     String roleLabel,
     SharedPreferences prefs,
   ) async {
+    if (!Platform.isAndroid) return;
     bool ignoring = false;
     try {
       ignoring = await FlutterForegroundTask.isIgnoringBatteryOptimizations;
@@ -166,8 +162,8 @@ class BackgroundLocationDisclosure {
     }
   }
 
-  /// In-app prompt shown right before the Android "Allow app to run in
-  /// background?" system dialog. Mirrors the location disclosure styling.
+  /// In-app prompt shown before system background execution prompt.
+  /// Mirrors the location disclosure styling.
   static Future<bool?> _showBatteryDisclosureDialog(
     BuildContext context,
     String roleLabel,
@@ -225,8 +221,8 @@ class BackgroundLocationDisclosure {
               ),
               const SizedBox(height: 12),
               _bullet(
-                  'On the next screen Android will ask: "Allow Index Care to '
-                  'run in the background?" — please tap Allow.'),
+                  'When prompted, please tap Allow to let Index Care '
+                  'run in the background.'),
               _bullet(
                   'This only allows tracking while you are on duty. Logging '
                   'out stops it instantly.'),
@@ -356,8 +352,9 @@ class BackgroundLocationDisclosure {
                   'record kilometres travelled, and verify on-site visits.'),
               _bullet('Data is shared only with administrators inside your '
                   'organisation. It is never sold or shared with advertisers.'),
-              _bullet('A persistent notification is shown whenever tracking is active, '
-                  'so you always know it is running.'),
+              if (Platform.isAndroid)
+                _bullet('A persistent notification is shown whenever tracking is active, '
+                    'so you always know it is running.'),
               _bullet('You can stop tracking any time by logging out, or by revoking '
                   'permission in your device Settings.'),
 

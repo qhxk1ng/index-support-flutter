@@ -9,7 +9,7 @@ This guide explains how to run the Flutter app against your **local backend** wi
 ## Prerequisites
 
 - Flutter SDK installed
-- Android emulator or physical device connected
+- iOS Simulator or physical iOS device connected
 - Local backend running (see below)
 
 ---
@@ -37,27 +37,20 @@ You should see:
 
 **No code changes needed.** Use `--dart-define=BASE_URL` to override the server URL at run time.
 
-### Android Emulator
-```powershell
-flutter run --dart-define=BASE_URL=http://10.0.2.2:5000
+### iOS Simulator
+```bash
+flutter run --dart-define=BASE_URL=http://localhost:5000
 ```
-> Android emulator uses `10.0.2.2` to reach your PC's `localhost`.
+> iOS Simulator shares localhost with your Mac directly, so `http://localhost:5000` connects straight to your local backend.
 
-### Chrome / Web
-```powershell
-flutter run -d chrome --dart-define=BASE_URL=http://localhost:5000
-```
-
-### Windows Desktop
-```powershell
-flutter run -d windows --dart-define=BASE_URL=http://localhost:5000
-```
-
-### Physical Android Device (on same Wi-Fi)
-```powershell
-# Replace 192.168.x.x with your PC's local IP (run ipconfig to find it)
+### Physical iOS Device (on same Wi-Fi)
+```bash
+# Replace 192.168.x.x with your Mac's local IP
 flutter run --dart-define=BASE_URL=http://192.168.x.x:5000
 ```
+
+### Xcode Direct Running
+Open `ios/Runner.xcworkspace` in Xcode, select your target Simulator or Device, and click the **Run (Play)** button.
 
 ---
 
@@ -65,56 +58,43 @@ flutter run --dart-define=BASE_URL=http://192.168.x.x:5000
 
 Open **two separate terminals** and run:
 
-**Terminal 1 — Admin (Chrome):**
-```powershell
-flutter run -d chrome --dart-define=BASE_URL=http://localhost:5000
+**Terminal 1 — Admin (Simulator):**
+```bash
+flutter run -d "iPhone 15 Pro" --dart-define=BASE_URL=http://localhost:5000
 ```
 
-**Terminal 2 — Technician (Android Emulator):**
-```powershell
-flutter run -d emulator-5554 --dart-define=BASE_URL=http://10.0.2.2:5000
+**Terminal 2 — Technician (Simulator):**
+```bash
+flutter run -d "iPhone 15" --dart-define=BASE_URL=http://localhost:5000
 ```
 
 Check available device IDs with:
-```powershell
+```bash
 flutter devices
 ```
 
 ---
 
-## Step 4 — Test API Endpoints Directly (Postman / PowerShell)
+## Step 4 — Test API Endpoints Directly (curl)
 
 ### Get auth token
-```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/admin-login" `
-  -Method POST -ContentType "application/json" `
-  -Body '{"email":"your@email.com","password":"yourpassword"}'
-$token = $response.data.token
-```
-
-### Test any endpoint
-```powershell
-Invoke-RestMethod -Uri "http://localhost:5000/api/admin/live-tracking" `
-  -Headers @{Authorization="Bearer $token"}
-
-Invoke-RestMethod -Uri "http://localhost:5000/api/admin/staff/STAFF_ID/route?startDate=2026-04-04&endDate=2026-04-04" `
-  -Headers @{Authorization="Bearer $token"}
+```bash
+curl -X POST http://localhost:5000/api/auth/admin-login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"your@email.com","password":"yourpassword"}'
 ```
 
 ---
 
-## Building for Production
+## Building for Production / Release
 
-When building the release APK, **do not pass `--dart-define=BASE_URL`** — it will automatically use the production URL `https://api.indexinformatics.in`.
+When building for iOS:
 
-```powershell
-flutter build apk --release
+```bash
+flutter build ipa --release
 ```
 
-Or with only the Mapbox token (production default URL):
-```powershell
-flutter build apk --release --dart-define=MAPBOX_PUBLIC_TOKEN=your_mapbox_public_token_here
-```
+Or run directly from Xcode using **Runner.xcworkspace** with the Release scheme.
 
 ---
 
@@ -123,9 +103,8 @@ flutter build apk --release --dart-define=MAPBOX_PUBLIC_TOKEN=your_mapbox_public
 | Environment | BASE_URL dart-define | Flutter command |
 |-------------|----------------------|-----------------|
 | Production (default) | *(not needed)* | `flutter run` |
-| Local — Android emulator | `http://10.0.2.2:5000` | `flutter run --dart-define=BASE_URL=http://10.0.2.2:5000` |
-| Local — Chrome/Windows | `http://localhost:5000` | `flutter run -d chrome --dart-define=BASE_URL=http://localhost:5000` |
-| Local — Physical device | `http://192.168.x.x:5000` | `flutter run --dart-define=BASE_URL=http://192.168.x.x:5000` |
+| Local — iOS Simulator | `http://localhost:5000` | `flutter run --dart-define=BASE_URL=http://localhost:5000` |
+| Local — Physical iOS device | `http://192.168.x.x:5000` | `flutter run --dart-define=BASE_URL=http://192.168.x.x:5000` |
 
 ---
 

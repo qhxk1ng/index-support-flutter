@@ -1,7 +1,7 @@
 name: index_care_app
 description: Index Care - Service Management Application
 publish_to: 'none'
-version: 1.0.3+6
+version: 1.0.3+9
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -87,12 +87,8 @@ flutter:
     - assets/animations/
 
 flutter_launcher_icons:
-  android: "launcher_icon"
   ios: true
   image_path: "assets/icons/app_icon.png"
-  adaptive_icon_background: "#2563EB"
-  adaptive_icon_foreground: "assets/icons/app_icon.png"
-  min_sdk_android: 21
   
   # fonts:
   #   - family: Poppins

@@ -18,6 +18,7 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
 
   bool _loading = true;
   bool _onboardingDone = false;
+  bool _isRequesting = false;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
@@ -71,6 +72,20 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
       ],
       permission: Permission.camera,
     ),
+    _PermissionStep(
+      icon: Icons.photo_library_rounded,
+      color: const Color(0xFF8B5CF6),
+      title: 'Photos & Files Access',
+      description:
+          'We need photo and file access to select QR codes from your gallery, '
+          'attach invoice documents, and save warranty PDF cards.',
+      whyNeeded: [
+        'Select QR codes from your photo gallery',
+        'Attach invoice and product receipts',
+        'Save and export PDF warranty cards',
+      ],
+      permission: Permission.photos,
+    ),
   ];
 
   @override
@@ -99,14 +114,23 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
 
   Future<void> _checkOnboarding() async {
     try {
-      // Check all permissions in parallel for fast first-paint.
-      // 1.5s timeout per check — long enough for a real device, short enough
-      // that the user never stares at a blank spinner.
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(_prefKey) ?? false;
+      if (done) {
+        if (mounted) {
+          setState(() {
+            _onboardingDone = true;
+            _loading = false;
+          });
+        }
+        return;
+      }
+
+      // Check all permissions safely in parallel
       final statuses = await Future.wait(_steps.map((step) async {
         try {
           return await step.permission.status
               .timeout(const Duration(milliseconds: 1500), onTimeout: () {
-            debugPrint('Permission status check timed out for ${step.title}');
             return PermissionStatus.denied;
           });
         } catch (e) {
@@ -114,11 +138,9 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
           return PermissionStatus.denied;
         }
       }));
-      final allGranted = statuses.every((s) => s.isGranted);
 
+      final allGranted = statuses.every((s) => s.isGranted);
       if (allGranted) {
-        // All permissions granted — never show onboarding again
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_prefKey, true);
         if (mounted) {
           setState(() {
@@ -129,20 +151,15 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
         return;
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final done = prefs.getBool(_prefKey) ?? false;
       if (mounted) {
         setState(() {
-          _onboardingDone = done;
+          _onboardingDone = false;
           _loading = false;
         });
-        if (!done) {
-          _fadeController.forward();
-          _iconBounceController.forward();
-        }
+        _fadeController.forward();
+        _iconBounceController.forward();
       }
     } catch (e) {
-      // Safety net: never get stuck on loading
       debugPrint('_checkOnboarding error: $e');
       if (mounted) {
         setState(() {
@@ -154,25 +171,43 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
   }
 
   Future<void> _requestCurrentPermission() async {
-    final step = _steps[_currentPage];
-    await step.permission.request();
-    _goNext();
+    if (_isRequesting) return;
+    setState(() => _isRequesting = true);
+
+    try {
+      final step = _steps[_currentPage];
+      await step.permission.request();
+    } catch (e) {
+      debugPrint('Error requesting permission: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isRequesting = false);
+        _goNext();
+      }
+    }
   }
 
   void _goNext() {
+    if (!mounted) return;
     if (_currentPage < _steps.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+        );
+      }
     } else {
       _finishOnboarding();
     }
   }
 
   Future<void> _finishOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefKey, true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, true);
+    } catch (e) {
+      debugPrint('Error saving onboarding state: $e');
+    }
     if (mounted) {
       setState(() => _onboardingDone = true);
     }
@@ -218,7 +253,7 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12, right: 16),
                     child: TextButton(
-                      onPressed: _finishOnboarding,
+                      onPressed: _isRequesting ? null : _finishOnboarding,
                       child: Text(
                         'Skip',
                         style: TextStyle(
@@ -282,7 +317,7 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: _requestCurrentPermission,
+                          onPressed: _isRequesting ? null : _requestCurrentPermission,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _steps[_currentPage].color,
                             foregroundColor: Colors.white,
@@ -291,20 +326,31 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.check_circle_outline, size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Allow ${_steps[_currentPage].title}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                          child: _isRequesting
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.check_circle_outline, size: 20),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Allow ${_steps[_currentPage].title}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
 
@@ -315,7 +361,7 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
                         width: double.infinity,
                         height: 48,
                         child: TextButton(
-                          onPressed: _goNext,
+                          onPressed: _isRequesting ? null : _goNext,
                           child: Text(
                             'Not Now',
                             style: TextStyle(
@@ -338,118 +384,120 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
   }
 
   Widget _buildStepPage(_PermissionStep step) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon
-          ScaleTransition(
-            scale: _iconBounce,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                color: step.color.withOpacity(0.1),
-                shape: BoxShape.circle,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon
+            ScaleTransition(
+              scale: _iconBounce,
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: step.color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(step.icon, size: 52, color: step.color),
               ),
-              child: Icon(step.icon, size: 52, color: step.color),
             ),
-          ),
 
-          const SizedBox(height: 36),
+            const SizedBox(height: 36),
 
-          // Title
-          Text(
-            step.title,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1E293B),
-              letterSpacing: -0.3,
+            // Title
+            Text(
+              step.title,
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
 
-          const SizedBox(height: 14),
+            const SizedBox(height: 14),
 
-          // Description
-          Text(
-            step.description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[500],
-              height: 1.5,
+            // Description
+            Text(
+              step.description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[500],
+                height: 1.5,
+              ),
             ),
-          ),
 
-          const SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-          // Why we need it
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Why we need this',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: step.color,
-                    letterSpacing: 0.5,
+            // Why we need it
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
                   ),
-                ),
-                const SizedBox(height: 14),
-                ...step.whyNeeded.map(
-                  (reason) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: step.color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.check_rounded,
-                            size: 16,
-                            color: step.color,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            reason,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Why we need this',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: step.color,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  ...step.whyNeeded.map(
+                    (reason) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: step.color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: step.color,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              reason,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 import '../../features/customer/domain/entities/warranty_entity.dart';
 
@@ -533,8 +536,8 @@ class WarrantyCardPdfService {
     );
   }
 
-  /// Trigger preview & download dialog via Printing library
-  static Future<void> downloadOrPreview(
+  /// One-click direct PDF download & save for both Android and iOS (NO printer dialog)
+  static Future<void> downloadAndSavePdf(
     BuildContext context, {
     required WarrantyEntity warranty,
     String? customerName,
@@ -543,58 +546,95 @@ class WarrantyCardPdfService {
       final serial = warranty.serialNumber?.serialNumber ?? 'Product';
       final fileName = 'Warranty_Card_$serial.pdf';
 
-      await Printing.layoutPdf(
-        name: fileName,
-        onLayout: (PdfPageFormat format) async {
-          return generateWarrantyCardPdf(
-            warranty: warranty,
-            customerName: customerName,
-          );
-        },
-      );
-    } on MissingPluginException {
+      // 1. Check & request storage permission on Android if needed
+      if (Platform.isAndroid) {
+        try {
+          final status = await Permission.storage.request();
+          if (status.isPermanentlyDenied) {
+            // Continues since Android 10+ scoped storage can write to downloads/external files without permission
+          }
+        } catch (_) {}
+      }
+
+      // Show instant feedback SnackBar
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'PDF plugin requires a full app restart. Please stop and re-run the app.',
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 14),
+                Text('Saving warranty card PDF...'),
+              ],
             ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
+            duration: Duration(seconds: 2),
           ),
         );
       }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate warranty card: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
-  /// Direct Share / Save PDF file
-  static Future<void> directSharePdf(
-    BuildContext context, {
-    required WarrantyEntity warranty,
-    String? customerName,
-  }) async {
-    try {
-      final serial = warranty.serialNumber?.serialNumber ?? 'Product';
-      final fileName = 'Warranty_Card_$serial.pdf';
-
+      // 2. Generate PDF bytes
       final bytes = await generateWarrantyCardPdf(
         warranty: warranty,
         customerName: customerName,
       );
 
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: fileName,
-      );
+      // 3. Determine save path and write file directly
+      File? savedFile;
+      String locationMessage = '';
+
+      if (Platform.isAndroid) {
+        // Try saving directly to device's public Download folder
+        try {
+          final downloadDir = Directory('/storage/emulated/0/Download');
+          if (await downloadDir.exists()) {
+            savedFile = File('${downloadDir.path}/$fileName');
+            await savedFile.writeAsBytes(bytes);
+            locationMessage = 'Saved directly to your Downloads folder';
+          }
+        } catch (_) {}
+
+        if (savedFile == null) {
+          try {
+            final extDir = await getExternalStorageDirectory();
+            if (extDir != null) {
+              savedFile = File('${extDir.path}/$fileName');
+              await savedFile.writeAsBytes(bytes);
+              locationMessage = 'Saved to device storage';
+            }
+          } catch (_) {}
+        }
+      } else if (Platform.isIOS) {
+        // On iOS, save to app's Documents directory (visible in Files app via UIFileSharingEnabled)
+        try {
+          final docsDir = await getApplicationDocumentsDirectory();
+          savedFile = File('${docsDir.path}/$fileName');
+          await savedFile.writeAsBytes(bytes);
+          locationMessage = 'Saved to Files app (On My iPhone > Index Care)';
+        } catch (_) {}
+      }
+
+      // Fallback if not saved yet
+      if (savedFile == null) {
+        final docsDir = await getApplicationDocumentsDirectory();
+        savedFile = File('${docsDir.path}/$fileName');
+        await savedFile.writeAsBytes(bytes);
+        locationMessage = 'Saved to app documents';
+      }
+
+      // 4. Show success modal popup with Share / Save To Files option (NO printer dialog)
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _showDownloadSuccessModal(
+          context,
+          fileName: fileName,
+          locationMessage: locationMessage,
+          bytes: bytes,
+        );
+      }
     } on MissingPluginException {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -617,5 +657,228 @@ class WarrantyCardPdfService {
         );
       }
     }
+  }
+
+  /// Trigger one-click download & save (Replaces printer dialog)
+  static Future<void> downloadOrPreview(
+    BuildContext context, {
+    required WarrantyEntity warranty,
+    String? customerName,
+  }) async {
+    await downloadAndSavePdf(
+      context,
+      warranty: warranty,
+      customerName: customerName,
+    );
+  }
+
+  /// Direct Share / Save PDF file without printer menu
+  static Future<void> directSharePdf(
+    BuildContext context, {
+    required WarrantyEntity warranty,
+    String? customerName,
+  }) async {
+    await downloadAndSavePdf(
+      context,
+      warranty: warranty,
+      customerName: customerName,
+    );
+  }
+
+  /// Clean download success bottom sheet modal
+  static void _showDownloadSuccessModal(
+    BuildContext context, {
+    required String fileName,
+    required String locationMessage,
+    required Uint8List bytes,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(30),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withAlpha(76),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withAlpha(30),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF10B981),
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Warranty Card Downloaded!',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fileName,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2563EB),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              locationMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 22),
+            // Primary Open & View PDF button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WarrantyCardPdfViewerPage(
+                        bytes: bytes,
+                        fileName: fileName,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.visibility_rounded, size: 20),
+                label: const Text(
+                  'Open & View PDF',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2F5597),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Printing.sharePdf(bytes: bytes, filename: fileName);
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    label: const Text('Share / Save As'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2F5597),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen in-app PDF Viewer for customer warranty cards (both Android & iOS)
+class WarrantyCardPdfViewerPage extends StatelessWidget {
+  final Uint8List bytes;
+  final String fileName;
+
+  const WarrantyCardPdfViewerPage({
+    super.key,
+    required this.bytes,
+    required this.fileName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Warranty Card',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF2F5597),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'Share / Save As',
+            onPressed: () {
+              Printing.sharePdf(bytes: bytes, filename: fileName);
+            },
+          ),
+        ],
+      ),
+      body: PdfPreview(
+        build: (format) => bytes,
+        pdfFileName: fileName,
+        allowPrinting: false,
+        allowSharing: false,
+        canChangeOrientation: false,
+        canChangePageFormat: false,
+        canDebug: false,
+        maxPageWidth: 700,
+        loadingWidget: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF2F5597)),
+        ),
+      ),
+    );
   }
 }

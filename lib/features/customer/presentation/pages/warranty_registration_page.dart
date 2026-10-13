@@ -72,6 +72,27 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
 
   Future<void> _scanFromGallery() async {
     try {
+      final status = await Permission.photos.request();
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          AppSnackbar.showError(
+            context,
+            'Photo library access is required to select images. Please enable it in Settings.',
+          );
+          await openAppSettings();
+        }
+        return;
+      }
+      if (status.isDenied) {
+        if (mounted) {
+          AppSnackbar.showError(
+            context,
+            'Photo library access was not granted.',
+          );
+        }
+        return;
+      }
+
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
@@ -258,44 +279,53 @@ class _WarrantyRegistrationPageState extends State<WarrantyRegistrationPage>
           }
         }
       },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(
-          title: Text(_step == 5 ? 'Warranty Approved' : 'Register Warranty'),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1E1E1E)
-              : _green,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          actions: [
-            if (_step == 5)
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context, true),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: ThemeToggleButton(isInAppBar: true),
-              ),
-          ],
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          leading: _step == 0
-              ? const BackButton()
-              : (_step == 5
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: _reset,
-                    )),
-          automaticallyImplyLeading: _step != 5,
-        ),
-        body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _buildStep(),
+      child: PopScope(
+        canPop: _step == 0 || _step == 5,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (_step != 0 && _step != 5) {
+            _reset();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text(_step == 5 ? 'Warranty Approved' : 'Register Warranty'),
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E1E)
+                : _green,
+            foregroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            actions: [
+              if (_step == 5)
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context, true),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: ThemeToggleButton(isInAppBar: true),
+                ),
+            ],
+            systemOverlayStyle: SystemUiOverlayStyle.light,
+            leading: _step == 0
+                ? const BackButton()
+                : (_step == 5
+                    ? null
+                    : IconButton(
+                        icon: const BackButtonIcon(),
+                        onPressed: _reset,
+                      )),
+            automaticallyImplyLeading: _step != 5,
+          ),
+          body: SafeArea(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _buildStep(),
+            ),
           ),
         ),
       ),

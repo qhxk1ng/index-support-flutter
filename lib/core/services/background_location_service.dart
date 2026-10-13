@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
@@ -53,8 +54,19 @@ class _LocationTaskHandler extends TaskHandler {
         return;
       }
 
-      const storage = FlutterSecureStorage();
-      final token = await storage.read(key: AppConstants.tokenKey);
+      String? token;
+      try {
+        const storage = FlutterSecureStorage(
+          iOptions: IOSOptions(
+            accessibility: KeychainAccessibility.first_unlock,
+          ),
+        );
+        token = await storage.read(key: AppConstants.tokenKey);
+      } catch (_) {}
+      if (token == null) {
+        final prefs = await SharedPreferences.getInstance();
+        token = prefs.getString(AppConstants.tokenKey);
+      }
       if (token == null) return;
 
       final dio = Dio(BaseOptions(

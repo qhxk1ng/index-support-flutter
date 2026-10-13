@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
@@ -10,12 +11,23 @@ import 'core/theme/theme_provider.dart';
 import 'core/widgets/network_status_banner.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
-import 'features/auth/presentation/pages/permissions_onboarding_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Allow standard unhandled errors to propagate to the native OS
+  // (Apple / iOS TestFlight crash reporter & Android system crash dialog)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Fatal uncaught error: $error\n$stack');
+    // Return false so native OS crash reporting handles fatal exceptions
+    return false;
+  };
+
   await di.init();
   
   // Initialize services with error handling — don't let failures
@@ -59,8 +71,7 @@ class MyApp extends StatelessWidget {
                 '/home': (context) => const HomePage(),
                 '/login': (context) => const LoginPage(),
               },
-              home: PermissionsOnboardingPage(
-                child: BlocConsumer<AuthBloc, AuthState>(
+              home: BlocConsumer<AuthBloc, AuthState>(
                   listenWhen: (previous, current) {
                     // Navigate only on real auth state transitions
                     return (previous is AuthAuthenticated && current is AuthUnauthenticated) ||
@@ -101,7 +112,6 @@ class MyApp extends StatelessWidget {
                     );
                   },
                 ),
-              ),
             );
           },
         ),
