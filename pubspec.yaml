@@ -1,7 +1,7 @@
 name: index_care_app
 description: Index Care - Service Management Application
 publish_to: 'none'
-version: 1.0.3+6
+version: 1.0.3+7
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

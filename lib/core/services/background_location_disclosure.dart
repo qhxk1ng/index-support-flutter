@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
@@ -34,6 +36,17 @@ class BackgroundLocationDisclosure {
     BuildContext context, {
     required String roleLabel,
   }) async {
+    // On iOS, skip Android/Google Play-specific disclosure dialogs and battery
+    // optimization prompts. Request permissions directly in-context.
+    if (!kIsWeb && Platform.isIOS) {
+      final fg = await Permission.locationWhenInUse.request();
+      if (fg.isGranted) {
+        await Permission.locationAlways.request();
+      }
+      await BackgroundLocationService.start();
+      return;
+    }
+
     // 1. If background permission is already granted and disclosure was
     //    previously accepted, just (re)start the service.
     final prefs = await SharedPreferences.getInstance();

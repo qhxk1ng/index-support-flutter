@@ -98,12 +98,21 @@ class _RaiseComplaintPageState extends State<RaiseComplaintPage> {
       return;
     }
 
-    final List<XFile>? pickedImages = await _imagePicker.pickMultiImage();
-    if (pickedImages != null && pickedImages.isNotEmpty) {
-      final combined = [..._selectedImages, ...pickedImages];
-      setState(() {
-        _selectedImages = combined.length > 5 ? combined.sublist(0, 5) : combined;
-      });
+    try {
+      final List<XFile>? pickedImages = await _imagePicker.pickMultiImage();
+      if (pickedImages != null && pickedImages.isNotEmpty) {
+        final combined = [..._selectedImages, ...pickedImages];
+        setState(() {
+          _selectedImages = combined.length > 5 ? combined.sublist(0, 5) : combined;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          'Could not access gallery. Please ensure photo permissions are granted in settings.',
+        );
+      }
     }
   }
 

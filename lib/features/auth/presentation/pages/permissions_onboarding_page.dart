@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -94,6 +96,14 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
       ),
     );
 
+    // On iOS, do not show permission onboarding at the front of the app.
+    // Permissions are requested in-context when features are used.
+    if (!kIsWeb && Platform.isIOS) {
+      _loading = false;
+      _onboardingDone = true;
+      return;
+    }
+
     _checkOnboarding();
   }
 
@@ -188,14 +198,14 @@ class _PermissionsOnboardingPageState extends State<PermissionsOnboardingPage>
 
   @override
   Widget build(BuildContext context) {
+    if ((!kIsWeb && Platform.isIOS) || _onboardingDone) {
+      return widget.child;
+    }
+
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
-    }
-
-    if (_onboardingDone) {
-      return widget.child;
     }
 
     return Scaffold(

@@ -91,16 +91,28 @@ class _LogActivityPageState extends State<LogActivityPage> {
   }
 
   Future<void> _pickVisitingCard() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (image != null) {
-      setState(() => _visitingCardImage = File(image.path));
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (image != null) {
+        setState(() => _visitingCardImage = File(image.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Could not access camera. Please check permissions in Settings.');
+      }
     }
   }
 
   Future<void> _pickBusinessImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (image != null) {
-      setState(() => _businessImages.add(File(image.path)));
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (image != null) {
+        setState(() => _businessImages.add(File(image.path)));
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Could not access camera. Please check permissions in Settings.');
+      }
     }
   }
 

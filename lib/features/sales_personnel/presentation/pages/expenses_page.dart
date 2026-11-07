@@ -109,13 +109,25 @@ class _RecordExpenseFormState extends State<_RecordExpenseForm> {
   }
 
   Future<void> _captureReceipt() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (image != null) setState(() => _receiptImages.add(File(image.path)));
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (image != null) setState(() => _receiptImages.add(File(image.path)));
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Could not access camera. Please check camera permissions in Settings.');
+      }
+    }
   }
 
   Future<void> _pickReceiptFromGallery() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (image != null) setState(() => _receiptImages.add(File(image.path)));
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (image != null) setState(() => _receiptImages.add(File(image.path)));
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Could not access photo library. Please check photo permissions in Settings.');
+      }
+    }
   }
 
   Future<void> _selectDate() async {
